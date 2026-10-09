@@ -4,7 +4,7 @@
 // unless ?keep=1. Nothing is sent to production.
 const { printify, isAdmin } = require("../lib/printify");
 const { SHOP_ID } = require("../lib/blanks");
-const { sendToPrintify } = require("../lib/orders");
+const { sendToPrintify, externalIdOf } = require("../lib/orders");
 
 module.exports = async (req, res) => {
   if (!isAdmin(req)) return res.status(401).json({ error: "unauthorized" });
@@ -18,7 +18,10 @@ module.exports = async (req, res) => {
       const id = q.get("cancel");
       if (!/^[a-f0-9]{24}$/.test(id)) return res.status(400).json({ error: "bad id" });
       const o = await printify(`shops/${SHOP_ID}/orders/${id}.json`);
-      if (!String(o.external_id || "").startsWith("test-")) return res.status(400).json({ error: "not a test order" });
+      const ext = externalIdOf(o);
+      if (!ext.startsWith("test-") && o.label !== "#TEST") {
+        return res.status(400).json({ error: "not a test order", label: o.label, fields: Object.keys(o), metadata: o.metadata || null });
+      }
       const c = await printify(`shops/${SHOP_ID}/orders/${id}/cancel.json`, { method: "POST" });
       return res.status(200).json({ cancelled: id, status: c && c.status });
     } catch (e) {
