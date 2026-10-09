@@ -12,6 +12,19 @@ module.exports = async (req, res) => {
     ALLOWED_ORIGINS: process.env.ALLOWED_ORIGINS || null,
     AUTO_PRODUCTION: process.env.AUTO_PRODUCTION === "true",
   };
+  // ?diag=1: try a tiny public Blob write and report the exact result (the store must be public,
+  // because Printify downloads designs from their Blob URLs).
+  let blobWrite = null;
+  if (new URL(req.url, "http://x").searchParams.get("diag") === "1") {
+    try {
+      const { put, del } = require("@vercel/blob");
+      const b = await put("logs/diag.txt", "ok", { access: "public", addRandomSuffix: true, contentType: "text/plain" });
+      await del(b.url);
+      blobWrite = { ok: true };
+    } catch (e) {
+      blobWrite = { ok: false, error: String(e.message || e) };
+    }
+  }
   let runs = [];
   try {
     if (env.BLOB_READ_WRITE_TOKEN) {
@@ -23,5 +36,5 @@ module.exports = async (req, res) => {
     runs = [{ error: String(e.message || e) }];
   }
   res.setHeader("Cache-Control", "no-store");
-  res.status(200).json({ env, runs });
+  res.status(200).json({ env, blobWrite, runs });
 };
