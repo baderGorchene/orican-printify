@@ -1,0 +1,7 @@
+{
+  "functions": {
+    "api/catalog.js": { "maxDuration": 120 },
+    "api/setup.js": { "maxDuration": 120 },
+    "api/shopify-order.js": { "maxDuration": 60 }
+  }
+}

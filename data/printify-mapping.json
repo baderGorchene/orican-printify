@@ -1,0 +1,55 @@
+{
+  "shop_id": 7881083,
+  "print_provider_id": 30,
+  "cost_currency": "USD",
+  "blanks": [
+    {
+      "key": "crew", "name": "Crew tee", "blueprint_id": 12, "printify_product_id": "6ac91b5a55a9ebcaa50b9e4f",
+      "mockup_base": "https://images-api.printify.com/mockup/6ac91b5a55a9ebcaa50b9e4f/{vid}/92547/orican-template-crew-tee.jpg?camera_label=front",
+      "mockup_vid": { "Athletic Heather": 18078, "Black": 18102, "Heather Olive": 39562, "Lavender Dust": 102981, "Mustard": 66485, "Natural": 18390, "Navy": 18398, "Red": 18446, "True Royal": 18518, "White": 18542 },
+      "variants": [
+        [18076,"Athletic Heather","S",1423],[18077,"Athletic Heather","M",1423],[18078,"Athletic Heather","L",1423],[18079,"Athletic Heather","XL",1423],[18080,"Athletic Heather","2XL",1423],[18081,"Athletic Heather","3XL",2066],
+        [18099,"Black","XS",1423],[18100,"Black","S",1423],[18101,"Black","M",1423],[18102,"Black","L",1423],[18103,"Black","XL",1423],[18104,"Black","2XL",1752],
+        [18387,"Natural","XS",1423],[18389,"Natural","M",1423],[18390,"Natural","L",1423],[18391,"Natural","XL",1423],[18392,"Natural","2XL",1638],
+        [18396,"Navy","S",1423],[18397,"Navy","M",1423],[18398,"Navy","L",1423],[18399,"Navy","XL",1423],[18400,"Navy","2XL",1752],
+        [18444,"Red","S",1423],[18445,"Red","M",1423],[18446,"Red","L",1423],[18447,"Red","XL",1423],[18448,"Red","2XL",1752],[18449,"Red","3XL",1740],
+        [18516,"True Royal","S",1423],[18517,"True Royal","M",1423],[18518,"True Royal","L",1423],[18519,"True Royal","XL",1423],[18520,"True Royal","2XL",1752],
+        [18539,"White","XS",1423],[18540,"White","S",1423],[18541,"White","M",1423],[18542,"White","L",1423],[18543,"White","XL",1423],[18544,"White","2XL",1752],
+        [39553,"Heather Olive","XS",1425],[39556,"Heather Olive","S",1425],[39562,"Heather Olive","L",1425],[39565,"Heather Olive","XL",1425],[39568,"Heather Olive","2XL",1657],
+        [66482,"Mustard","XS",1815],[66483,"Mustard","S",1815],[66484,"Mustard","M",1815],[66485,"Mustard","L",1815],[66486,"Mustard","XL",1815],[66487,"Mustard","2XL",1815],
+        [102979,"Lavender Dust","S",1815],[102980,"Lavender Dust","M",1815],[102981,"Lavender Dust","L",1815],[102982,"Lavender Dust","XL",1815],[102983,"Lavender Dust","2XL",1815]
+      ]
+    },
+    {
+      "key": "vneck", "name": "V-neck tee", "blueprint_id": 142, "printify_product_id": "6ac91b5d3b3a3e64620a4665",
+      "mockup_base": "https://images-api.printify.com/mockup/6ac91b5d3b3a3e64620a4665/{vid}/264/orican-template-v-neck-tee.jpg?camera_label=front",
+      "mockup_vid": { "Black": 37376, "Navy": 37370, "Royal": 37373, "White": 37375 },
+      "variants": [
+        [37346,"Navy","S",1445],[37349,"Royal","S",1445],[37351,"White","S",1328],[37352,"Black","S",1401],
+        [37358,"Navy","M",1445],[37361,"Royal","M",1445],[37363,"White","M",1328],[37364,"Black","M",1401],
+        [37370,"Navy","L",1445],[37373,"Royal","L",1445],[37375,"White","L",1328],[37376,"Black","L",1401],
+        [37382,"Navy","XL",1445],[37385,"Royal","XL",1445],[37387,"White","XL",1328],[37388,"Black","XL",1401],
+        [37394,"Navy","2XL",1445],[37397,"Royal","2XL",1445],[37399,"White","2XL",1328],[37400,"Black","2XL",1401]
+      ]
+    },
+    {
+      "key": "heavy", "name": "Heavy crew tee", "blueprint_id": 6, "printify_product_id": "6ac91b60af7641b6370958e0",
+      "mockup_base": "https://images-api.printify.com/mockup/6ac91b60af7641b6370958e0/{vid}/102005/orican-template-heavy-crew-tee.jpg?camera_label=front-2",
+      "mockup_vid": { "Black": 12124, "Dark Chocolate": 11896, "Dark Heather": 11902, "Maroon": 11974, "Military Green": 12190, "Natural": 11980, "Navy": 11986, "Sand": 12052, "Sport Grey": 12070, "White": 12100 },
+      "variants": [
+        [11896,"Dark Chocolate","L",907],[11897,"Dark Chocolate","M",907],[11898,"Dark Chocolate","S",907],[11899,"Dark Chocolate","XL",907],[11900,"Dark Chocolate","2XL",907],[11901,"Dark Chocolate","3XL",1082],
+        [11902,"Dark Heather","L",907],[11903,"Dark Heather","M",907],[11904,"Dark Heather","S",907],[11905,"Dark Heather","XL",907],[11906,"Dark Heather","2XL",907],[11907,"Dark Heather","3XL",1080],
+        [11974,"Maroon","L",907],[11975,"Maroon","M",907],[11976,"Maroon","S",907],[11977,"Maroon","XL",907],[11978,"Maroon","2XL",907],[11979,"Maroon","3XL",1111],
+        [11980,"Natural","L",907],[11981,"Natural","M",907],[11982,"Natural","S",907],[11983,"Natural","XL",907],[11984,"Natural","2XL",907],
+        [11986,"Navy","L",907],[11987,"Navy","M",907],[11988,"Navy","S",907],[11989,"Navy","XL",907],[11990,"Navy","2XL",907],[11991,"Navy","3XL",1080],
+        [12052,"Sand","L",907],[12053,"Sand","M",907],[12054,"Sand","S",907],[12055,"Sand","XL",907],[12056,"Sand","2XL",907],[12057,"Sand","3XL",1080],
+        [12070,"Sport Grey","L",907],[12071,"Sport Grey","M",907],[12072,"Sport Grey","S",907],[12073,"Sport Grey","XL",907],[12074,"Sport Grey","2XL",907],[12075,"Sport Grey","3XL",1082],
+        [12100,"White","L",897],[12101,"White","M",897],[12102,"White","S",897],[12103,"White","XL",897],[12104,"White","2XL",897],[12105,"White","3XL",1008],
+        [12124,"Black","L",907],[12125,"Black","M",907],[12126,"Black","S",907],[12127,"Black","XL",907],[12128,"Black","2XL",907],[12129,"Black","3XL",907],
+        [12190,"Military Green","L",907],[12191,"Military Green","M",907],[12192,"Military Green","S",907],[12193,"Military Green","XL",907],[12194,"Military Green","2XL",907],[12195,"Military Green","3XL",1080],
+        [23965,"Dark Heather","4XL",1148],[23993,"Navy","4XL",1080],[24015,"Sand","4XL",1148],[24021,"Sport Grey","4XL",1148],[24031,"White","4XL",1080],[24039,"Black","4XL",1080],[24060,"Military Green","4XL",1148],
+        [24099,"Dark Heather","5XL",1148],[24126,"Navy","5XL",1080],[24147,"Sand","5XL",1148],[24153,"Sport Grey","5XL",1148],[24164,"White","5XL",1092],[24171,"Black","5XL",1080],[24194,"Military Green","5XL",1148]
+      ]
+    }
+  ]
+}

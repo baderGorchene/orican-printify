@@ -1,0 +1,13 @@
+{
+  "name": "orican-printify",
+  "version": "0.1.0",
+  "private": true,
+  "description": "ORICAN backend: Printify catalog and order pipeline for the Shopify tee customizer",
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "@vercel/blob": "^2.8.1",
+    "@vercel/functions": "^3.9.11"
+  }
+}
