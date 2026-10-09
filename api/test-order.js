@@ -9,7 +9,22 @@ const { sendToPrintify } = require("../lib/orders");
 module.exports = async (req, res) => {
   if (!isAdmin(req)) return res.status(401).json({ error: "unauthorized" });
   if (req.method !== "POST") return res.status(405).json({ error: "use POST" });
-  const keep = new URL(req.url, "http://x").searchParams.get("keep") === "1";
+  const q = new URL(req.url, "http://x").searchParams;
+  const keep = q.get("keep") === "1";
+  // ?cancel=<printify_order_id> cancels an earlier test order (Printify only allows it once the
+  // order has left "pending") without creating a new one.
+  if (q.get("cancel")) {
+    try {
+      const id = q.get("cancel");
+      if (!/^[a-f0-9]{24}$/.test(id)) return res.status(400).json({ error: "bad id" });
+      const o = await printify(`shops/${SHOP_ID}/orders/${id}.json`);
+      if (!String(o.external_id || "").startsWith("test-")) return res.status(400).json({ error: "not a test order" });
+      const c = await printify(`shops/${SHOP_ID}/orders/${id}/cancel.json`, { method: "POST" });
+      return res.status(200).json({ cancelled: id, status: c && c.status });
+    } catch (e) {
+      return res.status(502).json({ error: String(e.message || e) });
+    }
+  }
   const origin = `https://${req.headers["x-forwarded-host"] || req.headers.host}`;
   const fake = {
     id: Date.now(),
