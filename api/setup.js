@@ -102,7 +102,7 @@ module.exports = async (req, res) => {
         // shirts (the storefront composites the customer's design onto them itself).
         if (!blankId) blankId = await placeholderImageId(origin, "orican-blank.png");
         const full = await printify(`shops/${SHOP_ID}/products/${product.id}.json`);
-        const enabled = full.variants.filter((v) => v.is_enabled).map((v) => v.id);
+        const enabled = full.variants.map((v) => v.id); // Printify requires every product variant here, enabled or not
         await printify(`shops/${SHOP_ID}/products/${product.id}.json`, {
           method: "PUT",
           body: { print_areas: [{ variant_ids: enabled, placeholders: [{ position: "front", images: [{ id: blankId, x: 0.5, y: 0.42, scale: 0.45, angle: 0 }] }] }] },
