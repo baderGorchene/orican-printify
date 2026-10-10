@@ -65,7 +65,11 @@ module.exports = async (req, res) => {
     const r = await fetch(srcUrl, { cache: "no-store" });
     if (!r.ok) return res.status(502).json({ error: `could not fetch src: ${r.status}` });
     const src = await r.text();
-    const { out, counts, checks, previews } = build(src);
+    // ?mode=original stores the source unchanged (diagnostics for Shopify's URL import)
+    const original = new URL(req.url, "http://x").searchParams.get("mode") === "original";
+    const { out, counts, checks, previews } = original
+      ? { out: src, counts: null, checks: { size: src.length }, previews: null }
+      : build(src);
     const sha = crypto.createHash("sha256").update(out).digest("hex").slice(0, 12);
     const blob = await put(`theme/orican-${sha}.liquid`, out, {
       access: "public", contentType: "text/plain; charset=utf-8", addRandomSuffix: true,
