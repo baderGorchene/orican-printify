@@ -10,8 +10,12 @@ module.exports = async (req, res) => {
   res.setHeader("Cache-Control", "no-store");
   if (q.get("probe")) {
     res.setHeader("Content-Type", ct);
-    return res.status(200).send("{% comment %}ORICAN url import probe{% endcomment %}<!-- ok -->\n");
+    const kb = Math.min(400, Math.max(0, parseInt(q.get("kb") || "0", 10) || 0));
+    const filler = kb ? "{% raw %}" + "x".repeat(kb * 1024) + "{% endraw %}" : "";
+    return res.status(200).send("{% comment %}ORICAN url import probe{% endcomment %}" + filler + "<!-- ok -->\n");
   }
+  // ?id=<sha>&part=<n>&of=<k>: serve one chunk of the layout's big raw block as its own snippet
+  // (Shopify refuses large Liquid files imported by URL, so the layout is split into small snippets)
   const id = q.get("id") || "";
   if (!/^[a-f0-9]{12}$/.test(id)) return res.status(400).send("bad id");
   try {
