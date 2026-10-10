@@ -13,11 +13,9 @@ module.exports = async (req, res) => {
     const kb = Math.min(400, Math.max(0, parseInt(q.get("kb") || "0", 10) || 0));
     const x = "x".repeat(kb * 1024);
     const filler = q.get("fill") === "plain" ? "<!-- " + x + " -->" : q.get("fill") === "tinyraw" ? "{% raw %}x{% endraw %}" : kb ? "{% raw %}" + x + "{% endraw %}" : "";
-    if (q.get("noenc")) res.setHeader("Content-Encoding", "identity");
+    if (q.get("noenc")) res.setHeader("Content-Encoding", "identity"); // compressed responses fail Shopify's URL import
     return res.status(200).send("{% comment %}ORICAN url import probe{% endcomment %}" + filler + "<!-- ok -->\n");
   }
-  // ?id=<sha>&part=<n>&of=<k>: serve one chunk of the layout's big raw block as its own snippet
-  // (Shopify refuses large Liquid files imported by URL, so the layout is split into small snippets)
   const id = q.get("id") || "";
   if (!/^[a-f0-9]{12}$/.test(id)) return res.status(400).send("bad id");
   try {
@@ -28,6 +26,8 @@ module.exports = async (req, res) => {
     if (!r.ok) return res.status(502).send("blob fetch failed");
     const body = Buffer.from(await r.arrayBuffer());
     res.setHeader("Content-Type", ct);
+    // Shopify's URL import fails on compressed responses; "identity" stops Vercel from brotli/gzip-ing it.
+    res.setHeader("Content-Encoding", "identity");
     res.setHeader("Content-Length", body.length);
     return res.status(200).send(body);
   } catch (e) {
