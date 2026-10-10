@@ -19,10 +19,10 @@ async function findDrafts() {
   return found;
 }
 
-async function placeholderImageId(origin) {
+async function placeholderImageId(origin, file = "orican-placeholder.png") {
   const up = await printify("uploads/images.json", {
     method: "POST",
-    body: { file_name: "orican-placeholder.png", url: `${origin}/orican-placeholder.png` },
+    body: { file_name: file, url: `${origin}/${file}` },
   });
   return up.id;
 }
@@ -70,7 +70,8 @@ module.exports = async (req, res) => {
   try {
     const origin = `https://${req.headers["x-forwarded-host"] || req.headers.host}`;
     const drafts = await findDrafts();
-    let imageId = null;
+    let imageId = null, blankId = null;
+    const blankMode = create && new URL(req.url, "http://x").searchParams.get("blank") === "1";
     const out = [];
 
     for (const blank of BLANKS) {
@@ -96,6 +97,17 @@ module.exports = async (req, res) => {
             }],
           },
         });
+      } else if (product && blankMode) {
+        // ?blank=1: swap the placeholder for an invisible image so Printify's mockups show plain
+        // shirts (the storefront composites the customer's design onto them itself).
+        if (!blankId) blankId = await placeholderImageId(origin, "orican-blank.png");
+        const full = await printify(`shops/${SHOP_ID}/products/${product.id}.json`);
+        const enabled = full.variants.filter((v) => v.is_enabled).map((v) => v.id);
+        await printify(`shops/${SHOP_ID}/products/${product.id}.json`, {
+          method: "PUT",
+          body: { print_areas: [{ variant_ids: enabled, placeholders: [{ position: "front", images: [{ id: blankId, x: 0.5, y: 0.42, scale: 0.45, angle: 0 }] }] }] },
+        });
+        product = await printify(`shops/${SHOP_ID}/products/${product.id}.json`);
       } else if (product) {
         product = await printify(`shops/${SHOP_ID}/products/${product.id}.json`);
       }
