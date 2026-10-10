@@ -11,7 +11,9 @@ module.exports = async (req, res) => {
   if (q.get("probe")) {
     res.setHeader("Content-Type", ct);
     const kb = Math.min(400, Math.max(0, parseInt(q.get("kb") || "0", 10) || 0));
-    const filler = kb ? "{% raw %}" + "x".repeat(kb * 1024) + "{% endraw %}" : "";
+    const x = "x".repeat(kb * 1024);
+    const filler = q.get("fill") === "plain" ? "<!-- " + x + " -->" : q.get("fill") === "tinyraw" ? "{% raw %}x{% endraw %}" : kb ? "{% raw %}" + x + "{% endraw %}" : "";
+    if (q.get("noenc")) res.setHeader("Content-Encoding", "identity");
     return res.status(200).send("{% comment %}ORICAN url import probe{% endcomment %}" + filler + "<!-- ok -->\n");
   }
   // ?id=<sha>&part=<n>&of=<k>: serve one chunk of the layout's big raw block as its own snippet
