@@ -1,0 +1,1 @@
+.blank-img{display:block;max-width:min(88%,560px);max-height:100%;width:auto;height:auto;object-fit:contain;border-radius:var(--r-sm);mix-blend-mode:multiply;user-select:none;-webkit-user-select:none;pointer-events:none}.blank-foot .actions .btn:disabled{opacity:.45;cursor:default;pointer-events:none}#textNextBtn:disabled{opacity:.6;cursor:progress}

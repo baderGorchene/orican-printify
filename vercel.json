@@ -1,16 +1,19 @@
 {
   "functions": {
-    "api/catalog.js": {
-      "maxDuration": 120
-    },
-    "api/setup.js": {
-      "maxDuration": 120
-    },
-    "api/shopify-order.js": {
-      "maxDuration": 60
-    },
-    "api/test-order.js": {
-      "maxDuration": 60
+    "api/catalog.js": { "maxDuration": 120 },
+    "api/setup.js": { "maxDuration": 120 },
+    "api/shopify-order.js": { "maxDuration": 60 },
+    "api/test-order.js": { "maxDuration": 60 },
+    "api/theme-build.js": { "maxDuration": 60, "includeFiles": "theme/**" }
+  },
+  "headers": [
+    {
+      "source": "/orican-upload.js",
+      "headers": [
+        { "key": "Access-Control-Allow-Origin", "value": "*" },
+        { "key": "Content-Type", "value": "text/javascript; charset=utf-8" },
+        { "key": "Cache-Control", "value": "public, max-age=3600" }
+      ]
     }
-  }
+  ]
 }

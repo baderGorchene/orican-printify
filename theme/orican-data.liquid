@@ -1,0 +1,18 @@
+{%- comment -%}ORICAN: the three Printify-backed blanks as JSON for the shop card (read by class st in layout/orican.liquid).{%- endcomment -%}
+{%- assign orican_handles = 'orican-crew-tee,orican-v-neck-tee,orican-heavy-crew-tee' | split: ',' -%}
+{%- assign orican_added = false -%}
+<script type="application/json" id="orican-products">[
+{%- for h in orican_handles -%}
+  {%- assign p = all_products[h] -%}
+  {%- if p.id -%}
+    {%- if orican_added -%},{%- endif -%}
+    {%- assign orican_added = true -%}
+    {"handle":{{ h | json }},"title":{{ p.title | json }},"meta":{{ p.metafields.orican.printify.value | json }},"variants":[
+    {%- for v in p.variants -%}
+      {"id":{{ v.id }},"c":{{ v.option1 | json }},"s":{{ v.option2 | json }},"money":{{ v.price | money | strip_html | json }},"available":{{ v.available | json }},"img":{%- if v.featured_image -%}{{ v.featured_image | image_url: width: 900 | json }}{%- else -%}null{%- endif -%}}
+      {%- unless forloop.last -%},{%- endunless -%}
+    {%- endfor -%}
+    ]}
+  {%- endif -%}
+{%- endfor -%}
+]</script>
