@@ -19,6 +19,29 @@ const STYLE_END = "</style> </head>";
 const PRICE = '<div class="price" id="teePrice">$14.00</div>';
 const DATA_TAG = "{% endraw %}{% render 'orican-data' %}{% raw %}";
 
+// snippets/cart-products.liquid (cart page + cart drawer): show the customer's composited preview
+// (line item property _preview_url, a public Vercel Blob PNG) instead of the plain variant image.
+const CART_IMG = "echo item.image | image_url: width: 250 | image_tag: class: 'cart-items__media-image border-style', style: border_override";
+const CART_NEW = [
+  "assign orican_pv = item.properties['_preview_url'] | default: '' | escape",
+  "assign orican_head = orican_pv | slice: 0, 8",
+  "if orican_head == 'https://' and orican_pv contains '.public.blob.vercel-storage.com/designs/'",
+  "  assign orican_alt = item.product.title | escape",
+  "  echo '<img src=\"' | append: orican_pv | append: '\" class=\"cart-items__media-image border-style\" style=\"' | append: border_override | append: '\" alt=\"' | append: orican_alt | append: '\" loading=\"lazy\">'",
+  "else",
+  "  " + CART_IMG,
+  "endif",
+].join("\n");
+
+function buildCart(src) {
+  if (src.includes("orican_pv")) throw new Error("cart snippet is already patched");
+  const n = count(src, CART_IMG);
+  if (n !== 1) throw new Error(`expected exactly one cart image line, found ${n}`);
+  const out = src.replace(CART_IMG, CART_NEW);
+  const i = out.indexOf("orican_pv");
+  return { out, counts: { cart_img: n }, checks: { size_before: src.length, size_after: out.length }, previews: { cart: out.slice(i - 200, i + 900) } };
+}
+
 function build(src) {
   const card = read("blank-card.js"), css = read("blank-card.css");
   if (card.includes("{%") || css.includes("{%")) throw new Error("patch code must not contain Liquid tags");
@@ -66,10 +89,10 @@ module.exports = async (req, res) => {
     if (!r.ok) return res.status(502).json({ error: `could not fetch src: ${r.status}` });
     const src = await r.text();
     // ?mode=original stores the source unchanged (diagnostics for Shopify's URL import)
-    const original = new URL(req.url, "http://x").searchParams.get("mode") === "original";
-    const { out, counts, checks, previews } = original
+    const mode = new URL(req.url, "http://x").searchParams.get("mode");
+    const { out, counts, checks, previews } = mode === "original"
       ? { out: src, counts: null, checks: { size: src.length }, previews: null }
-      : build(src);
+      : mode === "cart" ? buildCart(src) : build(src);
     const sha = crypto.createHash("sha256").update(out).digest("hex").slice(0, 12);
     const blob = await put(`theme/orican-${sha}.liquid`, out, {
       access: "public", contentType: "text/plain; charset=utf-8", addRandomSuffix: true,
@@ -82,3 +105,4 @@ module.exports = async (req, res) => {
 };
 
 module.exports.build = build;
+module.exports.buildCart = buildCart;
