@@ -62,7 +62,7 @@ function extras(src) {
   const counts = {};
   FRAME_PATCHES.forEach(([a, b], n) => {
     const ca = count(out, a), cb = count(out, b);
-    if (cb === 1 && ca === 0) { counts["frame" + n] = "already"; return; }
+    if (cb === 1) { counts["frame" + n] = "already"; return; } // checked first: a patched line can contain its original
     if (ca !== 1) throw new Error(`frame patch ${n}: expected one match, found ${ca}`);
     out = out.replace(a, b); counts["frame" + n] = 1;
   });
