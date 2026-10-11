@@ -42,6 +42,38 @@ function buildCart(src) {
   return { out, counts: { cart_img: n }, checks: { size_before: src.length, size_after: out.length }, previews: { cart: out.slice(i - 200, i + 900) } };
 }
 
+// Customizer (3D frame): draw the real Printify blank (cut out, current card color) instead of the
+// illustrated tee, and size the dashed print frame to the real print area (ratio 4200/4800).
+// The shirt is scaled per product so its print area lands exactly on that fixed frame.
+const FRAME_PATCHES = [
+  ["const t=.3*3.1/2,e=.50375,s={x:0,y:.29},i={x:.415,y:e-.05};",
+   "const t=.6009,e=.6868,s={x:0,y:.0378},i={x:t-.05,y:e-.05};"],
+  ["function h(t,e,s,i){t.clearRect(0,0,e,s);",
+   "function h(t,e,s,i){t.clearRect(0,0,e,s);const T=window.__oricanTee;if(T&&T.cv){const A=T.area,D=.3877*e/A[2],R=T.cv.height/T.cv.width;t.drawImage(T.cv,.5*e-(A[0]+A[2]/2)*D,.4902*s-(A[1]+A[3]/2)*D*R,D,D*R);return}"],
+  ["this.viewer.setColor(this.blank.color.hex)}",
+   "this.viewer.setColor(this.blank.color.hex);const T=this.blank.frameTee&&this.blank.frameTee();T&&T.then(()=>this.viewer&&this.viewer.setColor(this.blank.color.hex)).catch(()=>{})}"],
+];
+// Closing section: the ORICAN logo instead of the missing "ORICAN studio" photo.
+const STUDIO_IMG = /<figure><img src="https:\/\/d8j0ntlcm91z4\.cloudfront\.net\/[^"]+" alt="ORICAN studio"[^>]*><\/figure>/g;
+const STUDIO_NEW = '<figure class="closing-logo"><svg class="logo" viewBox="0 0 1030 248" role="img" aria-label="ORICAN"><use href="#orican-logo"></use></svg></figure>';
+
+function extras(src) {
+  let out = src;
+  const counts = {};
+  FRAME_PATCHES.forEach(([a, b], n) => {
+    const ca = count(out, a), cb = count(out, b);
+    if (cb === 1 && ca === 0) { counts["frame" + n] = "already"; return; }
+    if (ca !== 1) throw new Error(`frame patch ${n}: expected one match, found ${ca}`);
+    out = out.replace(a, b); counts["frame" + n] = 1;
+  });
+  const m = out.match(STUDIO_IMG) || [];
+  if (m.length > 1) throw new Error(`studio image: expected at most one, found ${m.length}`);
+  if (m.length === 1) out = out.replace(m[0], STUDIO_NEW);
+  else if (!out.includes('class="closing-logo"')) throw new Error("studio image not found");
+  counts.studio = m.length ? 1 : "already";
+  return { out, counts };
+}
+
 function build(src) {
   const card = read("blank-card.js"), css = read("blank-card.css");
   if (card.includes("{%") || css.includes("{%")) throw new Error("patch code must not contain Liquid tags");
@@ -52,12 +84,16 @@ function build(src) {
     if (c0 !== 1 || c1 !== 1) throw new Error(`repatch: expected one card start and end, found ${c0}/${c1}`);
     const a = src.indexOf(NEW_START), b = src.indexOf(ST_END);
     if (!(b > a)) throw new Error("repatch: card class not where expected");
-    const out = src.slice(0, a) + card + src.slice(b);
+    let out = src.slice(0, a) + card + src.slice(b);
+    const ex = extras(out); out = ex.out;
+    const k0 = out.indexOf(".blank-slide{grid-template-rows"), k1 = out.indexOf(STYLE_END);
+    if (k0 < 0 || k1 < k0) throw new Error("repatch: card css not found");
+    out = out.slice(0, k0) + css + out.slice(k1);
     const m0 = out.indexOf(MAIN_OPEN) + "<script>".length, m1 = out.indexOf("</script>", m0);
     const code = out.slice(m0, m1);
     try { new Function(code); } catch (e) { throw new Error("main script does not parse: " + e.message); }
     if (!code.includes("_preview_url")) throw new Error("new card missing from main script");
-    return { out, counts: { repatch: 1 }, checks: { size_before: src.length, size_after: out.length }, previews: null };
+    return { out, counts: { repatch: 1, ...ex.counts }, checks: { size_before: src.length, size_after: out.length }, previews: null };
   }
 
   const counts = {
@@ -72,6 +108,7 @@ function build(src) {
   out = out.replace(MAIN_OPEN, DATA_TAG + MAIN_OPEN);
   out = out.replace(STYLE_END, css + STYLE_END);
   out = out.replace(PRICE, '<div class="price" id="teePrice"></div>');
+  const ex = extras(out); out = ex.out; Object.assign(counts, ex.counts);
 
   // checks
   const raw = count(out, "{% raw %}"), endraw = count(out, "{% endraw %}");
