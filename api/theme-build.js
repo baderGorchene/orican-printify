@@ -65,6 +65,9 @@ const FRAME_PATCHES = [
    "setDesignGeometry(s,i){u.flat&&(u.pendingTextureImg=null),u.flat=!1,u.designMesh&&"],
   ['try{await this.#He(),this.viewer.setDesignTexture(s),this.toast("Texture applied to design")}catch(t){}',
    'try{await this.#He();const P=!this.viewer.hasDesign();P?(this.viewer.setFlatImage(s),this.roll.reset(),this.zoom.reset(),this.text.reset(),this.result.resetSettings(),this.toast("Image placed on proof")):(this.viewer.setDesignTexture(s),this.toast("Texture applied to your 3D design"))}catch(t){console.error("ORICAN image",t),this.toast("Couldn\'t place that image",2e3)}'],
+  // step 2 (filters) used to crop the view to the design's bounding box; show the whole print area
+  // instead so steps 1, 2 and 3 all frame the same 0.875 area (the export was already full-area)
+  ["if(this.#te={x:0,y:0},l){", "if(this.#te={x:0,y:0},!1){"],
   ['title="Add a texture image to the design" aria-label="Add texture"',
    'title="Add an image (or a texture for your 3D design)" aria-label="Add image"'],
 ];
