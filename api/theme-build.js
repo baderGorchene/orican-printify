@@ -46,12 +46,27 @@ function buildCart(src) {
 // illustrated tee, and size the dashed print frame to the real print area (ratio 4200/4800).
 // The shirt is scaled per product so its print area lands exactly on that fixed frame.
 const FRAME_PATCHES = [
+  // [original, patched, ...earlier patched versions]
   ["const t=.3*3.1/2,e=.50375,s={x:0,y:.29},i={x:.415,y:e-.05};",
+   "const t=.6009,e=.68674,s={x:0,y:.0378},i={x:t-.05,y:e-.05};",
    "const t=.6009,e=.6868,s={x:0,y:.0378},i={x:t-.05,y:e-.05};"],
   ["function h(t,e,s,i){t.clearRect(0,0,e,s);",
    "function h(t,e,s,i){t.clearRect(0,0,e,s);const T=window.__oricanTee;if(T&&T.cv){const A=T.area,D=.3877*e/A[2],R=T.cv.height/T.cv.width;t.drawImage(T.cv,.5*e-(A[0]+A[2]/2)*D,.4902*s-(A[1]+A[3]/2)*D*R,D,D*R);return}"],
   ["this.viewer.setColor(this.blank.color.hex)}",
    "this.viewer.setColor(this.blank.color.hex);const T=this.blank.frameTee&&this.blank.frameTee();T&&T.then(()=>this.viewer&&this.viewer.setColor(this.blank.color.hex)).catch(()=>{})}"],
+  // the exported print area (steps 2-3 and the print file) must be exactly the dashed frame of step 1:
+  // same half-height e and ratio 0.875 (4200x4800), rendered at 2048 px wide
+  ["const t=1024,e=Math.round(1109.3333333333335),i=new THREE.PerspectiveCamera(2*Math.atan(.08125)*180/Math.PI,t/e,.1,100)",
+   "const t=2048,e=Math.round(2048/.875),i=new THREE.PerspectiveCamera(2*Math.atan(.68674/6.2)*180/Math.PI,t/e,.1,100)"],
+  // image button: with no 3D design loaded, place the picture itself as a flat design (unlit, true colors)
+  ["clearDesignTexture(){u.pendingTextureImg=null},",
+   "clearDesignTexture(){u.pendingTextureImg=null},hasDesign(){return!!u.designMesh&&!u.flat},setFlatImage(t){u.pendingTextureImg=null,this.setDesignGeometry(new THREE.PlaneGeometry(1,(t.naturalHeight||1)/(t.naturalWidth||1)),\"#ffffff\");const m=u.designMesh;m.material.dispose(),m.material=new THREE.MeshBasicMaterial({color:\"#ffffff\",transparent:!0,alphaTest:.01,clippingPlanes:w,side:THREE.DoubleSide}),u.flat=!0,u.pendingTextureImg=t,it(t)},"],
+  ["setDesignGeometry(s,i){u.designMesh&&",
+   "setDesignGeometry(s,i){u.flat&&(u.pendingTextureImg=null),u.flat=!1,u.designMesh&&"],
+  ['try{await this.#He(),this.viewer.setDesignTexture(s),this.toast("Texture applied to design")}catch(t){}',
+   'try{await this.#He();const P=!this.viewer.hasDesign();P?(this.viewer.setFlatImage(s),this.roll.reset(),this.zoom.reset(),this.text.reset(),this.result.resetSettings(),this.toast("Image placed on proof")):(this.viewer.setDesignTexture(s),this.toast("Texture applied to your 3D design"))}catch(t){console.error("ORICAN image",t),this.toast("Couldn\'t place that image",2e3)}'],
+  ['title="Add a texture image to the design" aria-label="Add texture"',
+   'title="Add an image (or a texture for your 3D design)" aria-label="Add image"'],
 ];
 // Closing section: the ORICAN logo instead of the missing "ORICAN studio" photo.
 const STUDIO_IMG = /<figure><img src="https:\/\/d8j0ntlcm91z4\.cloudfront\.net\/[^"]+" alt="ORICAN studio"[^>]*><\/figure>/g;
@@ -60,9 +75,11 @@ const STUDIO_NEW = '<figure class="closing-logo"><svg class="logo" viewBox="0 0 
 function extras(src) {
   let out = src;
   const counts = {};
-  FRAME_PATCHES.forEach(([a, b], n) => {
-    const ca = count(out, a), cb = count(out, b);
-    if (cb === 1) { counts["frame" + n] = "already"; return; } // checked first: a patched line can contain its original
+  FRAME_PATCHES.forEach(([a, b, ...olds], n) => {
+    if (count(out, b) === 1) { counts["frame" + n] = "already"; return; } // checked first: a patched line can contain its original
+    const prev = olds.find((o) => count(out, o) === 1);
+    if (prev) { out = out.replace(prev, b); counts["frame" + n] = "updated"; return; }
+    const ca = count(out, a);
     if (ca !== 1) throw new Error(`frame patch ${n}: expected one match, found ${ca}`);
     out = out.replace(a, b); counts["frame" + n] = 1;
   });
