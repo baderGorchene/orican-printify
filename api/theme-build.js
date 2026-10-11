@@ -45,7 +45,20 @@ function buildCart(src) {
 function build(src) {
   const card = read("blank-card.js"), css = read("blank-card.css");
   if (card.includes("{%") || css.includes("{%")) throw new Error("patch code must not contain Liquid tags");
-  if (src.includes("render 'orican-data'")) throw new Error("source is already patched");
+  if (src.includes("render 'orican-data'")) {
+    // already-patched layout: swap only the card class for the current theme/blank-card.js
+    const NEW_START = card.slice(0, card.indexOf("static"));
+    const c0 = count(src, NEW_START), c1 = count(src, ST_END);
+    if (c0 !== 1 || c1 !== 1) throw new Error(`repatch: expected one card start and end, found ${c0}/${c1}`);
+    const a = src.indexOf(NEW_START), b = src.indexOf(ST_END);
+    if (!(b > a)) throw new Error("repatch: card class not where expected");
+    const out = src.slice(0, a) + card + src.slice(b);
+    const m0 = out.indexOf(MAIN_OPEN) + "<script>".length, m1 = out.indexOf("</script>", m0);
+    const code = out.slice(m0, m1);
+    try { new Function(code); } catch (e) { throw new Error("main script does not parse: " + e.message); }
+    if (!code.includes("_preview_url")) throw new Error("new card missing from main script");
+    return { out, counts: { repatch: 1 }, checks: { size_before: src.length, size_after: out.length }, previews: null };
+  }
 
   const counts = {
     main_script: count(src, MAIN_OPEN), st_start: count(src, ST_START), st_end: count(src, ST_END),
