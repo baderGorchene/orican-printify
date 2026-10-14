@@ -1,0 +1,89 @@
+{
+  "orican-v-neck-tee": {
+    "title": "ORICAN V-neck tee",
+    "tags": ["blank-vneck", "customizable", "orican", "printify"],
+    "descriptionHtml": "<p>Gildan 64V00 fitted V-neck tee. Soft ring-spun cotton, fitted cut. Printed to order in the EU with your design.</p>",
+    "altPrefix": "V-neck tee",
+    "metafield": "{\"blank\":\"vneck\",\"blueprint_id\":142,\"print_provider_id\":30,\"printify_template_product\":\"6ac91b5d3b3a3e64620a4665\",\"colors\":{\"White\":\"#F6F6F4\",\"Black\":\"#1B1C1E\",\"Navy\":\"#23283A\",\"Royal\":\"#2A4BA0\"}}",
+    "colors": ["White", "Black", "Navy", "Royal"],
+    "sizes": ["S", "M", "L", "XL", "2XL"],
+    "images": {
+      "White": "https://cdn.shopify.com/s/files/1/1091/7701/2555/files/orican-template-v-neck-tee_096ad9dc-d097-460a-be43-a491d1797fa8.jpg?v=1791638283",
+      "Black": "https://cdn.shopify.com/s/files/1/1091/7701/2555/files/orican-template-v-neck-tee.jpg?v=1791638282",
+      "Navy": "https://cdn.shopify.com/s/files/1/1091/7701/2555/files/orican-template-v-neck-tee_af17d841-cf5d-464a-b3f3-1d99aa172dfb.jpg?v=1791638284",
+      "Royal": "https://cdn.shopify.com/s/files/1/1091/7701/2555/files/orican-template-v-neck-tee_15ccf850-0eca-4487-ab6a-c6df3b4c4a75.jpg?v=1791638283"
+    },
+    "variants": [
+      "White|S|PFY-142-30-37351|32.90", "White|M|PFY-142-30-37363|32.90", "White|L|PFY-142-30-37375|32.90", "White|XL|PFY-142-30-37387|32.90", "White|2XL|PFY-142-30-37399|35.90",
+      "Black|S|PFY-142-30-37352|32.90", "Black|M|PFY-142-30-37364|32.90", "Black|L|PFY-142-30-37376|32.90", "Black|XL|PFY-142-30-37388|32.90", "Black|2XL|PFY-142-30-37400|35.90",
+      "Navy|S|PFY-142-30-37346|32.90", "Navy|M|PFY-142-30-37358|32.90", "Navy|L|PFY-142-30-37370|32.90", "Navy|XL|PFY-142-30-37382|32.90", "Navy|2XL|PFY-142-30-37394|35.90",
+      "Royal|S|PFY-142-30-37349|32.90", "Royal|M|PFY-142-30-37361|32.90", "Royal|L|PFY-142-30-37373|32.90", "Royal|XL|PFY-142-30-37385|32.90", "Royal|2XL|PFY-142-30-37397|35.90"
+    ]
+  },
+  "orican-crew-tee": {
+    "title": "ORICAN Crew tee",
+    "tags": ["blank-crew", "customizable", "orican", "printify"],
+    "descriptionHtml": "<p>Bella+Canvas 3001 unisex jersey tee. 100% airlume combed cotton (heathers are blends), retail fit. Printed to order in the EU with your design.</p>",
+    "altPrefix": "Crew tee",
+    "metafield": "{\"blank\":\"crew\",\"blueprint_id\":12,\"print_provider_id\":30,\"printify_template_product\":\"6ac91b5a55a9ebcaa50b9e4f\",\"colors\":{\"White\":\"#F6F6F4\",\"Natural\":\"#EDE3CF\",\"Athletic Heather\":\"#C9C9C7\",\"Black\":\"#1B1C1E\",\"Navy\":\"#23283A\",\"True Royal\":\"#2B4FA8\",\"Heather Olive\":\"#8A8C6A\",\"Lavender Dust\":\"#B8A9C9\",\"Mustard\":\"#D9A633\",\"Red\":\"#C3262E\"}}",
+    "colors": ["White", "Natural", "Athletic Heather", "Black", "Navy", "True Royal", "Heather Olive", "Lavender Dust", "Mustard", "Red"],
+    "sizes": ["XS", "S", "M", "L", "XL", "2XL", "3XL"],
+    "images": {
+      "White": "https://cdn.shopify.com/s/files/1/1091/7701/2555/files/orican-template-crew-tee_d2e6ab2c-9216-459a-8b7c-65b1af53baee.jpg?v=1791638283",
+      "Natural": "https://cdn.shopify.com/s/files/1/1091/7701/2555/files/orican-template-crew-tee_3852fbe0-f0b3-46d5-8a62-f6937baf3717.jpg?v=1791638283",
+      "Athletic Heather": "https://cdn.shopify.com/s/files/1/1091/7701/2555/files/orican-template-crew-tee_34fce688-e2dc-4d23-ac2f-2c8dc8d4a4cc.jpg?v=1791638284",
+      "Black": "https://cdn.shopify.com/s/files/1/1091/7701/2555/files/orican-template-crew-tee_c8621a26-b497-436e-8cb6-45beaa06ece4.jpg?v=1791638283",
+      "Navy": "https://cdn.shopify.com/s/files/1/1091/7701/2555/files/orican-template-crew-tee.jpg?v=1791638282",
+      "True Royal": "https://cdn.shopify.com/s/files/1/1091/7701/2555/files/orican-template-crew-tee_3e777b98-2676-497f-ad9a-c45e427dca4b.jpg?v=1791638282",
+      "Heather Olive": "https://cdn.shopify.com/s/files/1/1091/7701/2555/files/orican-template-crew-tee_3a326bb3-6613-4e6c-92b7-b4239e902b3c.jpg?v=1791638283",
+      "Lavender Dust": "https://cdn.shopify.com/s/files/1/1091/7701/2555/files/orican-template-crew-tee_2a8c97d8-364a-4f78-a8bd-b90f2d102218.jpg?v=1791638283",
+      "Mustard": "https://cdn.shopify.com/s/files/1/1091/7701/2555/files/orican-template-crew-tee_8db7961c-8ced-44cc-8c94-656088464681.jpg?v=1791638283",
+      "Red": "https://cdn.shopify.com/s/files/1/1091/7701/2555/files/orican-template-crew-tee_8852f8a8-3b96-456a-baa4-d88c01760de5.jpg?v=1791638282"
+    },
+    "variants": [
+      "White|XS|PFY-12-30-18539|34.90", "White|S|PFY-12-30-18540|34.90", "White|M|PFY-12-30-18541|34.90", "White|L|PFY-12-30-18542|34.90", "White|XL|PFY-12-30-18543|34.90", "White|2XL|PFY-12-30-18544|37.90",
+      "Natural|XS|PFY-12-30-18387|34.90", "Natural|M|PFY-12-30-18389|34.90", "Natural|L|PFY-12-30-18390|34.90", "Natural|XL|PFY-12-30-18391|34.90", "Natural|2XL|PFY-12-30-18392|37.90",
+      "Athletic Heather|S|PFY-12-30-18076|34.90", "Athletic Heather|M|PFY-12-30-18077|34.90", "Athletic Heather|L|PFY-12-30-18078|34.90", "Athletic Heather|XL|PFY-12-30-18079|34.90", "Athletic Heather|2XL|PFY-12-30-18080|37.90", "Athletic Heather|3XL|PFY-12-30-18081|37.90",
+      "Black|XS|PFY-12-30-18099|34.90", "Black|S|PFY-12-30-18100|34.90", "Black|M|PFY-12-30-18101|34.90", "Black|L|PFY-12-30-18102|34.90", "Black|XL|PFY-12-30-18103|34.90", "Black|2XL|PFY-12-30-18104|37.90",
+      "Navy|S|PFY-12-30-18396|34.90", "Navy|M|PFY-12-30-18397|34.90", "Navy|L|PFY-12-30-18398|34.90", "Navy|XL|PFY-12-30-18399|34.90", "Navy|2XL|PFY-12-30-18400|37.90",
+      "True Royal|S|PFY-12-30-18516|34.90", "True Royal|M|PFY-12-30-18517|34.90", "True Royal|L|PFY-12-30-18518|34.90", "True Royal|XL|PFY-12-30-18519|34.90", "True Royal|2XL|PFY-12-30-18520|37.90",
+      "Heather Olive|XS|PFY-12-30-39553|34.90", "Heather Olive|S|PFY-12-30-39556|34.90", "Heather Olive|L|PFY-12-30-39562|34.90", "Heather Olive|XL|PFY-12-30-39565|34.90", "Heather Olive|2XL|PFY-12-30-39568|37.90",
+      "Lavender Dust|S|PFY-12-30-102979|34.90", "Lavender Dust|M|PFY-12-30-102980|34.90", "Lavender Dust|L|PFY-12-30-102981|34.90", "Lavender Dust|XL|PFY-12-30-102982|34.90", "Lavender Dust|2XL|PFY-12-30-102983|37.90",
+      "Mustard|XS|PFY-12-30-66482|34.90", "Mustard|S|PFY-12-30-66483|34.90", "Mustard|M|PFY-12-30-66484|34.90", "Mustard|L|PFY-12-30-66485|34.90", "Mustard|XL|PFY-12-30-66486|34.90", "Mustard|2XL|PFY-12-30-66487|37.90",
+      "Red|S|PFY-12-30-18444|34.90", "Red|M|PFY-12-30-18445|34.90", "Red|L|PFY-12-30-18446|34.90", "Red|XL|PFY-12-30-18447|34.90", "Red|2XL|PFY-12-30-18448|37.90", "Red|3XL|PFY-12-30-18449|37.90"
+    ]
+  },
+  "orican-heavy-crew-tee": {
+    "title": "ORICAN Heavy crew tee",
+    "tags": ["blank-heavy", "customizable", "orican", "printify"],
+    "descriptionHtml": "<p>Gildan 5000 heavy cotton tee. Thick 100% cotton (heathers are blends), classic fit. Printed to order in the EU with your design.</p>",
+    "altPrefix": "Heavy crew tee",
+    "metafield": "{\"blank\":\"heavy\",\"blueprint_id\":6,\"print_provider_id\":30,\"printify_template_product\":\"6ac91b60af7641b6370958e0\",\"colors\":{\"White\":\"#F6F6F4\",\"Natural\":\"#EFE6D2\",\"Sand\":\"#D8C8A8\",\"Sport Grey\":\"#9C9EA0\",\"Dark Heather\":\"#4A4C50\",\"Black\":\"#1B1C1E\",\"Navy\":\"#23283A\",\"Military Green\":\"#5E6447\",\"Maroon\":\"#5C1E2A\",\"Dark Chocolate\":\"#3E2C24\"}}",
+    "colors": ["White", "Natural", "Sand", "Sport Grey", "Dark Heather", "Black", "Navy", "Military Green", "Maroon", "Dark Chocolate"],
+    "sizes": ["S", "M", "L", "XL", "2XL", "3XL", "4XL", "5XL"],
+    "images": {
+      "White": "https://cdn.shopify.com/s/files/1/1091/7701/2555/files/orican-template-heavy-crew-tee_45b90e59-cbd3-4290-a5ad-85f75446d6b1.jpg?v=1791638282",
+      "Natural": "https://cdn.shopify.com/s/files/1/1091/7701/2555/files/orican-template-heavy-crew-tee.jpg?v=1791638283",
+      "Sand": "https://cdn.shopify.com/s/files/1/1091/7701/2555/files/orican-template-heavy-crew-tee_ace4887b-521a-4473-bdcd-530aa4dd7d60.jpg?v=1791638283",
+      "Sport Grey": "https://cdn.shopify.com/s/files/1/1091/7701/2555/files/orican-template-heavy-crew-tee_8e87144d-4448-47ad-87a4-18a95a59f773.jpg?v=1791638284",
+      "Dark Heather": "https://cdn.shopify.com/s/files/1/1091/7701/2555/files/orican-template-heavy-crew-tee_62f79c10-dba2-45a0-95f5-c986f05e6a14.jpg?v=1791638284",
+      "Black": "https://cdn.shopify.com/s/files/1/1091/7701/2555/files/orican-template-heavy-crew-tee_8a082106-65b8-4ebf-bd3e-7027087dbfae.jpg?v=1791638283",
+      "Navy": "https://cdn.shopify.com/s/files/1/1091/7701/2555/files/orican-template-heavy-crew-tee_51b7f0ee-4c98-413f-9cdc-ddb03dc60e60.jpg?v=1791638283",
+      "Military Green": "https://cdn.shopify.com/s/files/1/1091/7701/2555/files/orican-template-heavy-crew-tee_923c157d-f4e9-47e0-89bc-10fb75afbcc3.jpg?v=1791638283",
+      "Maroon": "https://cdn.shopify.com/s/files/1/1091/7701/2555/files/orican-template-heavy-crew-tee_fce4b569-98bb-47f5-bc99-a80db5285c2e.jpg?v=1791638283",
+      "Dark Chocolate": "https://cdn.shopify.com/s/files/1/1091/7701/2555/files/orican-template-heavy-crew-tee_d30d77cb-86c9-4fd2-a95f-1104c27b2991.jpg?v=1791638283"
+    },
+    "variants": [
+      "White|S|PFY-6-30-12102|29.90", "White|M|PFY-6-30-12101|29.90", "White|L|PFY-6-30-12100|29.90", "White|XL|PFY-6-30-12103|29.90", "White|2XL|PFY-6-30-12104|32.90", "White|3XL|PFY-6-30-12105|32.90", "White|4XL|PFY-6-30-24031|32.90", "White|5XL|PFY-6-30-24164|32.90",
+      "Natural|S|PFY-6-30-11982|29.90", "Natural|M|PFY-6-30-11981|29.90", "Natural|L|PFY-6-30-11980|29.90", "Natural|XL|PFY-6-30-11983|29.90", "Natural|2XL|PFY-6-30-11984|32.90",
+      "Sand|S|PFY-6-30-12054|29.90", "Sand|M|PFY-6-30-12053|29.90", "Sand|L|PFY-6-30-12052|29.90", "Sand|XL|PFY-6-30-12055|29.90", "Sand|2XL|PFY-6-30-12056|32.90", "Sand|3XL|PFY-6-30-12057|32.90", "Sand|4XL|PFY-6-30-24015|32.90", "Sand|5XL|PFY-6-30-24147|32.90",
+      "Sport Grey|S|PFY-6-30-12072|29.90", "Sport Grey|M|PFY-6-30-12071|29.90", "Sport Grey|L|PFY-6-30-12070|29.90", "Sport Grey|XL|PFY-6-30-12073|29.90", "Sport Grey|2XL|PFY-6-30-12074|32.90", "Sport Grey|3XL|PFY-6-30-12075|32.90", "Sport Grey|4XL|PFY-6-30-24021|32.90", "Sport Grey|5XL|PFY-6-30-24153|32.90",
+      "Dark Heather|S|PFY-6-30-11904|29.90", "Dark Heather|M|PFY-6-30-11903|29.90", "Dark Heather|L|PFY-6-30-11902|29.90", "Dark Heather|XL|PFY-6-30-11905|29.90", "Dark Heather|2XL|PFY-6-30-11906|32.90", "Dark Heather|3XL|PFY-6-30-11907|32.90", "Dark Heather|4XL|PFY-6-30-23965|32.90", "Dark Heather|5XL|PFY-6-30-24099|32.90",
+      "Black|S|PFY-6-30-12126|29.90", "Black|M|PFY-6-30-12125|29.90", "Black|L|PFY-6-30-12124|29.90", "Black|XL|PFY-6-30-12127|29.90", "Black|2XL|PFY-6-30-12128|32.90", "Black|3XL|PFY-6-30-12129|32.90", "Black|4XL|PFY-6-30-24039|32.90", "Black|5XL|PFY-6-30-24171|32.90",
+      "Navy|S|PFY-6-30-11988|29.90", "Navy|M|PFY-6-30-11987|29.90", "Navy|L|PFY-6-30-11986|29.90", "Navy|XL|PFY-6-30-11989|29.90", "Navy|2XL|PFY-6-30-11990|32.90", "Navy|3XL|PFY-6-30-11991|32.90", "Navy|4XL|PFY-6-30-23993|32.90", "Navy|5XL|PFY-6-30-24126|32.90",
+      "Military Green|S|PFY-6-30-12192|29.90", "Military Green|M|PFY-6-30-12191|29.90", "Military Green|L|PFY-6-30-12190|29.90", "Military Green|XL|PFY-6-30-12193|29.90", "Military Green|2XL|PFY-6-30-12194|32.90", "Military Green|3XL|PFY-6-30-12195|32.90", "Military Green|4XL|PFY-6-30-24060|32.90", "Military Green|5XL|PFY-6-30-24194|32.90",
+      "Maroon|S|PFY-6-30-11976|29.90", "Maroon|M|PFY-6-30-11975|29.90", "Maroon|L|PFY-6-30-11974|29.90", "Maroon|XL|PFY-6-30-11977|29.90", "Maroon|2XL|PFY-6-30-11978|32.90", "Maroon|3XL|PFY-6-30-11979|32.90",
+      "Dark Chocolate|S|PFY-6-30-11898|29.90", "Dark Chocolate|M|PFY-6-30-11897|29.90", "Dark Chocolate|L|PFY-6-30-11896|29.90", "Dark Chocolate|XL|PFY-6-30-11899|29.90", "Dark Chocolate|2XL|PFY-6-30-11900|32.90", "Dark Chocolate|3XL|PFY-6-30-11901|32.90"
+    ]
+  }
+}

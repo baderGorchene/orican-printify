@@ -10,7 +10,7 @@ const { isAdmin } = require("../lib/printify");
 
 const read = (f) => fs.readFileSync(path.join(process.cwd(), "theme", f), "utf8").trim();
 const count = (s, sub) => s.split(sub).length - 1;
-const ALLOWED_SRC = /^https:\/\/(orican-41i0abev\.myshopify\.com\/cdn\/|cdn\.shopify\.com\/)/;
+const ALLOWED_SRC = /^https:\/\/((orican-41i0abev|dgie1v-yg)\.myshopify\.com\/cdn\/|(www\.)?wearorican\.com\/cdn\/|cdn\.shopify\.com\/)/;
 
 const MAIN_OPEN = '<script>!function(){"use strict";';
 const ST_START = "class st{#Nt=0;#l=null;static TEES=";

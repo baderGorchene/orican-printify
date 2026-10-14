@@ -3,6 +3,7 @@
 // Public on purpose: Shopify's themeFilesUpsert (body type URL) has to download it. It only serves
 // files this project wrote under theme/ in its own Blob store.
 const { list } = require("@vercel/blob");
+const SHOPIFY_CDN = /^https:\/\/((orican-41i0abev|dgie1v-yg)\.myshopify\.com|(www\.)?wearorican\.com)\/cdn\/shop\/t\/\d+\/assets\/[\w.-]+(\?[\w=&.-]*)?$/;
 
 module.exports = async (req, res) => {
   const q = new URL(req.url, "http://x").searchParams;
@@ -15,6 +16,22 @@ module.exports = async (req, res) => {
     const filler = q.get("fill") === "plain" ? "<!-- " + x + " -->" : q.get("fill") === "tinyraw" ? "{% raw %}x{% endraw %}" : kb ? "{% raw %}" + x + "{% endraw %}" : "";
     if (q.get("noenc")) res.setHeader("Content-Encoding", "identity"); // compressed responses fail Shopify's URL import
     return res.status(200).send("{% comment %}ORICAN url import probe{% endcomment %}" + filler + "<!-- ok -->\n");
+  }
+  // ?src=<Shopify CDN URL of a theme asset>: relay it uncompressed (used to move theme files between stores)
+  const src = q.get("src");
+  if (src) {
+    if (!SHOPIFY_CDN.test(src)) return res.status(400).send("src must be a Shopify CDN URL");
+    try {
+      const r = await fetch(src, { cache: "no-store", headers: { "Accept-Encoding": "identity" } });
+      if (!r.ok) return res.status(502).send(`src fetch failed: ${r.status}`);
+      const body = Buffer.from(await r.arrayBuffer());
+      res.setHeader("Content-Type", ct);
+      res.setHeader("Content-Encoding", "identity");
+      res.setHeader("Content-Length", body.length);
+      return res.status(200).send(body);
+    } catch (e) {
+      return res.status(500).send(String(e.message || e));
+    }
   }
   const id = q.get("id") || "";
   if (!/^[a-f0-9]{12}$/.test(id)) return res.status(400).send("bad id");
