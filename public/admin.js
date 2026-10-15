@@ -172,6 +172,8 @@
       loadStatus();
     } else if (tabId === 'blanks' && !state.blanksData) {
       loadBlanks();
+    } else if (tabId === 'models' && !state.modelsData) {
+      loadModels();
     }
   }
 
@@ -323,6 +325,75 @@
   }
 
   // --- Module 3: Blanks & Catalog Explorer ---
+  // --- 3D Model Catalogue ---
+  async function loadModels() {
+    const box = document.getElementById('modelsContainer');
+    try {
+      const res = await fetch('/api/models', { cache: 'no-store' });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      state.modelsData = await res.json();
+      box.innerHTML = state.modelsData.length ? state.modelsData.map(m => `
+        <div class="blank-crm-card">
+          <div class="blank-stage">
+            <span class="blank-blueprint-pill">${m.model.split('.').pop().toUpperCase()}${m.texture ? ' + texture' : ''}</span>
+            <img class="blank-mockup-img" src="${m.thumb || '/orican-placeholder.png'}" alt="${m.name}" />
+          </div>
+          <div class="blank-card-details">
+            <div class="blank-header-row">
+              <h3 class="blank-name-title" style="text-transform:capitalize;">${m.name}</h3>
+              <button class="btn btn-danger btn-sm" data-delete-model="${m.slug}">Delete</button>
+            </div>
+          </div>
+        </div>`).join('') : '<div style="grid-column:1 / -1; text-align:center; padding:48px; color:var(--text-muted);">No models yet. Add one above.</div>';
+    } catch (err) {
+      showToast(`Failed to load models: ${err.message}`, 'error');
+    }
+  }
+
+  async function uploadModel(e) {
+    e.preventDefault();
+    if (!state.key) return showAuthModal();
+    const slug = document.getElementById('modelName').value.trim().toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60);
+    const file = (id) => document.getElementById(id).files[0];
+    const model = file('modelFile');
+    if (!slug || !model) return showToast('Name and model file are required', 'error');
+    const ext = (f) => f.name.split('.').pop().toLowerCase().replace('jpeg', 'jpg');
+    const parts = [[model, `model.${ext(model)}`], [file('modelMtl'), 'model.mtl'],
+      [file('modelTexture'), 'texture'], [file('modelThumb'), 'thumb']]
+      .filter(([f]) => f).map(([f, n]) => [f, n.includes('.') ? n : `${n}.${ext(f)}`]);
+    const btn = document.getElementById('uploadModelBtn');
+    btn.disabled = true;
+    try {
+      // Re-upload under the same name: clear the old folder so stale texture/thumb files don't linger.
+      await apiFetch('/api/models', { method: 'POST', body: { action: 'delete', slug } });
+      const { upload } = await import('/orican-upload.js');
+      for (const [f, name] of parts) {
+        btn.textContent = `Uploading ${name}…`;
+        await upload(`models/${slug}/${name}`, f, { access: 'public', handleUploadUrl: '/api/models', clientPayload: state.key });
+      }
+      showToast(`Model "${slug}" uploaded`, 'success');
+      e.target.reset();
+      loadModels();
+    } catch (err) {
+      showToast(`Upload failed: ${err.message}`, 'error');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Upload model';
+    }
+  }
+
+  async function deleteModel(slug) {
+    if (!confirm(`Delete model "${slug}" from the catalogue?`)) return;
+    try {
+      await apiFetch('/api/models', { method: 'POST', body: { action: 'delete', slug } });
+      showToast(`Model "${slug}" deleted`, 'success');
+      loadModels();
+    } catch (err) {
+      showToast(`Delete failed: ${err.message}`, 'error');
+    }
+  }
+
   async function loadBlanks() {
     try {
       el.refreshBlanksBtn.disabled = true;
@@ -628,6 +699,14 @@
     if (el.refreshBlanksBtn) el.refreshBlanksBtn.addEventListener('click', loadBlanks);
     if (el.syncTemplatesBtn) el.syncTemplatesBtn.addEventListener('click', syncTemplates);
     if (el.browseCatalogBtn) el.browseCatalogBtn.addEventListener('click', browseCatalog);
+
+    // Model catalogue events
+    document.getElementById('refreshModelsBtn').addEventListener('click', loadModels);
+    document.getElementById('modelForm').addEventListener('submit', uploadModel);
+    document.getElementById('modelsContainer').addEventListener('click', (e) => {
+      const b = e.target.closest('[data-delete-model]');
+      if (b) deleteModel(b.dataset.deleteModel);
+    });
 
     // Theme events
     if (el.buildThemeBtn) el.buildThemeBtn.addEventListener('click', buildTheme);

@@ -67,6 +67,18 @@
               </button>
             </li>
             <li>
+              <button class="nav-link-btn tab-btn" data-tab="models" role="tab" id="tabBtnModels">
+                <div class="nav-link-content">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+                    <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+                    <line x1="12" y1="22.08" x2="12" y2="12"></line>
+                  </svg>
+                  <span>3D Models</span>
+                </div>
+              </button>
+            </li>
+            <li>
               <button class="nav-link-btn tab-btn" data-tab="theme" role="tab" id="tabBtnTheme">
                 <div class="nav-link-content">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
@@ -408,6 +420,51 @@
               Loading blank templates and color mockups from Printify…
             </div>
           </div>
+        </section>
+
+        <!-- TAB: 3D Model Catalogue (storefront "Catalogue" button) -->
+        <section class="tab-pane" id="tab-models" role="tabpanel">
+          <div class="view-header">
+            <div class="view-title-wrap">
+              <h1>3D Model Catalogue</h1>
+              <p>Models shoppers can pick in the customizer instead of uploading their own. Changes show on the storefront within a minute.</p>
+            </div>
+            <div class="view-actions-group">
+              <button class="btn btn-secondary" id="refreshModelsBtn">Refresh</button>
+            </div>
+          </div>
+
+          <div class="crm-card" style="max-width: 860px; margin-bottom: 28px;">
+            <div class="crm-card-header">
+              <h2 class="crm-card-title"><span>Add a model</span></h2>
+            </div>
+            <form class="crm-card-body" id="modelForm">
+              <div class="form-group">
+                <label class="form-label" for="modelName">Name</label>
+                <input type="text" class="form-input" id="modelName" placeholder="e.g. Skull" required maxlength="60" />
+                <p class="form-hint">Uploading a name that already exists replaces that model.</p>
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="modelFile">Model file (.glb, .obj or .fbx, max 120 MB)</label>
+                <input type="file" class="form-input" id="modelFile" accept=".glb,.obj,.fbx" required />
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="modelMtl">Material file (.mtl, optional, for .obj)</label>
+                <input type="file" class="form-input" id="modelMtl" accept=".mtl" />
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="modelTexture">Texture image (optional)</label>
+                <input type="file" class="form-input" id="modelTexture" accept="image/png,image/jpeg,image/webp" />
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="modelThumb">Thumbnail shown to shoppers (optional, square works best)</label>
+                <input type="file" class="form-input" id="modelThumb" accept="image/png,image/jpeg,image/webp" />
+              </div>
+              <button type="submit" class="btn btn-primary" id="uploadModelBtn">Upload model</button>
+            </form>
+          </div>
+
+          <div class="blanks-grid" id="modelsContainer"></div>
         </section>
 
         <!-- TAB 4: Theme Patcher -->
