@@ -1,599 +1,258 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="dark">
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>ORICAN // Operations & CRM Dashboard</title>
-  <meta name="description" content="Sleek Dribbble-style CRM & Operations Dashboard for ORICAN Printify & Shopify customizer pipeline." />
+  <title>ORICAN Admin</title>
   <link rel="icon" type="image/png" href="/orican-placeholder.png" />
   <link rel="stylesheet" href="/admin.css" />
 </head>
 <body>
 
-  <div class="app-shell">
+  <header class="topbar">
+    <span class="brand">ORICAN <span>Admin</span></span>
+    <nav class="tabs" role="tablist">
+      <button class="tab-btn active" data-tab="models" role="tab">Models</button>
+      <button class="tab-btn" data-tab="packs" role="tab">Packs</button>
+      <button class="tab-btn" data-tab="orders" role="tab">Orders</button>
+      <button class="tab-btn" data-tab="blanks" role="tab">Blanks</button>
+      <button class="tab-btn" data-tab="theme" role="tab">Theme</button>
+    </nav>
+    <button class="icon-btn" id="lockBtn" title="Change admin key" aria-label="Change admin key">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+    </button>
+  </header>
 
-    <!-- Left Vertical Sidebar Navigation -->
-    <aside class="app-sidebar">
-      <div class="sidebar-header">
-        <a href="/admin" class="sidebar-brand">
-          <div class="brand-icon-wrapper">O</div>
-          <div class="brand-title-group">
-            <span class="brand-title">ORICAN</span>
-            <span class="brand-subtitle">Ops & Fulfillment CRM</span>
-          </div>
-        </a>
-      </div>
+  <main class="page">
 
-      <div class="sidebar-body">
+    <!-- Models: the storefront's 3D design catalogue -->
+    <section class="tab-pane active" id="tab-models" role="tabpanel">
+      <div class="page-head">
         <div>
-          <div class="nav-group-title">Main Navigation</div>
-          <ul class="sidebar-nav-list" role="tablist">
-            <li>
-              <button class="nav-link-btn tab-btn active" data-tab="status" role="tab" id="tabBtnStatus">
-                <div class="nav-link-content">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                    <rect x="3" y="3" width="7" height="7"></rect>
-                    <rect x="14" y="3" width="7" height="7"></rect>
-                    <rect x="14" y="14" width="7" height="7"></rect>
-                    <rect x="3" y="14" width="7" height="7"></rect>
-                  </svg>
-                  <span>Overview & Health</span>
-                </div>
-                <span class="nav-badge-pill">Live</span>
-              </button>
-            </li>
-            <li>
-              <button class="nav-link-btn tab-btn" data-tab="orders" role="tab" id="tabBtnOrders">
-                <div class="nav-link-content">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                    <circle cx="9" cy="21" r="1"></circle>
-                    <circle cx="20" cy="21" r="1"></circle>
-                    <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path>
-                  </svg>
-                  <span>Order Pipeline</span>
-                </div>
-                <span class="nav-badge-pill">Test</span>
-              </button>
-            </li>
-            <li>
-              <button class="nav-link-btn tab-btn" data-tab="blanks" role="tab" id="tabBtnBlanks">
-                <div class="nav-link-content">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                    <path d="M20.38 3.46L16 2a4 4 0 0 1-8 0L3.62 3.46a2 2 0 0 0-1.34 2.23l.58 3.47a1 1 0 0 0 .99.84H6v10c0 1.1.9 2 2 2h8a2 2 0 0 0 2-2V10h2.15a1 1 0 0 0 .99-.84l.58-3.47a2 2 0 0 0-1.34-2.23z"></path>
-                  </svg>
-                  <span>Blanks & Catalog</span>
-                </div>
-                <span class="nav-badge-pill">3</span>
-              </button>
-            </li>
-            <li>
-              <button class="nav-link-btn tab-btn" data-tab="models" role="tab" id="tabBtnModels">
-                <div class="nav-link-content">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                    <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
-                    <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
-                    <line x1="12" y1="22.08" x2="12" y2="12"></line>
-                  </svg>
-                  <span>3D Models</span>
-                </div>
-              </button>
-            </li>
-            <li>
-              <button class="nav-link-btn tab-btn" data-tab="theme" role="tab" id="tabBtnTheme">
-                <div class="nav-link-content">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                    <polyline points="16 18 22 12 16 6"></polyline>
-                    <polyline points="8 6 2 12 8 18"></polyline>
-                  </svg>
-                  <span>Theme Engine</span>
-                </div>
-                <span class="nav-badge-pill">v2.4</span>
-              </button>
-            </li>
-          </ul>
+          <h1>3D models</h1>
+          <p class="muted">What shoppers can pick in the customizer. Uploads are optimized in this browser and get a 360° preview.</p>
         </div>
-
-        <!-- Sidebar Info Widget -->
-        <div class="sidebar-widget">
-          <div class="sidebar-widget-header">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <circle cx="12" cy="12" r="10"></circle>
-              <line x1="12" y1="16" x2="12" y2="12"></line>
-              <line x1="12" y1="8" x2="12.01" y2="8"></line>
-            </svg>
-            <span>Fulfillment Routing</span>
-          </div>
-          <div class="sidebar-widget-body">
-            Single EU Provider: <strong>OPT OnDemand (CZ)</strong>. Mixed orders dispatch in one package.
-          </div>
-          <div class="sidebar-widget-tag">
-            <span class="pulse-indicator"></span>
-            <span>Shopify Hook Active</span>
-          </div>
-        </div>
+        <button class="btn" id="refreshModelsBtn">Refresh</button>
       </div>
 
-      <!-- User Profile & Session Lock Footer -->
-      <div class="sidebar-footer">
-        <div class="user-profile">
-          <div class="user-avatar">
-            <span>OA</span>
-            <span class="user-status-dot"></span>
-          </div>
-          <div class="user-info">
-            <span class="user-name">ORICAN Admin</span>
-            <span class="user-role">Operations Lead</span>
-          </div>
+      <form class="panel upload" id="modelForm">
+        <div class="upload-row">
+          <label class="field">
+            <span>Name</span>
+            <input type="text" id="modelName" placeholder="e.g. Skull" required maxlength="60" />
+          </label>
+          <label class="field">
+            <span>Model file (.glb, .obj, .fbx)</span>
+            <input type="file" id="modelFile" accept=".glb,.obj,.fbx" required />
+          </label>
+          <button type="submit" class="btn btn-primary" id="uploadModelBtn">Upload model</button>
         </div>
-        <button class="icon-btn" id="lockBtn" title="Lock Console / Manage Key" aria-label="Lock Admin Key">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
-            <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
-          </svg>
-        </button>
-      </div>
-    </aside>
-
-    <!-- Main Content Area -->
-    <div class="app-content-wrapper">
-
-      <!-- Top Header Command Bar -->
-      <header class="top-header">
-        <div class="header-search-bar">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <circle cx="11" cy="11" r="8"></circle>
-            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-          </svg>
-          <input type="text" class="header-search-input" id="globalSearchInput" placeholder="Quick search operations, SKUs, logs…" />
-          <span class="search-shortcut-pill">⌘K</span>
-        </div>
-
-        <div class="header-controls-group">
-          <div class="live-indicator-pill">
-            <span class="pulse-indicator"></span>
-            <span>Pipeline Live</span>
+        <details class="more">
+          <summary>More options</summary>
+          <div class="upload-row">
+            <label class="field">
+              <span>Material (.mtl, for .obj)</span>
+              <input type="file" id="modelMtl" accept=".mtl" />
+            </label>
+            <label class="field">
+              <span>Texture image</span>
+              <input type="file" id="modelTexture" accept="image/png,image/jpeg,image/webp" />
+            </label>
+            <label class="field">
+              <span>Still thumbnail (only if the preview can't render)</span>
+              <input type="file" id="modelThumb" accept="image/png,image/jpeg,image/webp" />
+            </label>
           </div>
-          <button class="icon-btn" id="themeToggle" title="Toggle Light / Dark mode" aria-label="Toggle theme">
-            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <circle cx="12" cy="12" r="5"></circle>
-              <line x1="12" y1="1" x2="12" y2="3"></line>
-              <line x1="12" y1="21" x2="12" y2="23"></line>
-              <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
-              <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
-              <line x1="1" y1="12" x2="3" y2="12"></line>
-              <line x1="21" y1="12" x2="23" y2="12"></line>
-              <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
-              <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
-            </svg>
-          </button>
-        </div>
-      </header>
-
-      <!-- Main Dynamic Views -->
-      <main class="main-view-container">
-
-        <!-- Top CRM Metric KPI Tiles Row (Displayed Across Dashboard) -->
-        <div class="kpi-metrics-grid">
-          <div class="kpi-tile">
-            <div class="kpi-tile-header">
-              <span class="kpi-tile-label">ORICAN Core Blanks</span>
-              <div class="kpi-icon-pill mono">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M20.38 3.46L16 2a4 4 0 0 1-8 0L3.62 3.46a2 2 0 0 0-1.34 2.23l.58 3.47a1 1 0 0 0 .99.84H6v10c0 1.1.9 2 2 2h8a2 2 0 0 0 2-2V10h2.15a1 1 0 0 0 .99-.84l.58-3.47a2 2 0 0 0-1.34-2.23z"></path>
-                </svg>
-              </div>
-            </div>
-            <div class="kpi-tile-value">3 Active Blanks</div>
-            <div class="kpi-tile-footer">
-              <span class="trend-badge positive">OPT OnDemand (CZ)</span>
-              <span>Provider 30</span>
-            </div>
-          </div>
-
-          <div class="kpi-tile">
-            <div class="kpi-tile-header">
-              <span class="kpi-tile-label">Printify Shop</span>
-              <div class="kpi-icon-pill emerald">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
-                  <polyline points="9 22 9 12 15 12 15 22"></polyline>
-                </svg>
-              </div>
-            </div>
-            <div class="kpi-tile-value">#7881083</div>
-            <div class="kpi-tile-footer">
-              <span class="trend-badge positive">Connected</span>
-              <span>API Orders Mode</span>
-            </div>
-          </div>
-
-          <div class="kpi-tile">
-            <div class="kpi-tile-header">
-              <span class="kpi-tile-label">Fulfillment Mode</span>
-              <div class="kpi-icon-pill amber">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
-                  <polyline points="2 17 12 22 22 17"></polyline>
-                  <polyline points="2 12 12 17 22 12"></polyline>
-                </svg>
-              </div>
-            </div>
-            <div class="kpi-tile-value" id="kpiProdMode">Manual Approval</div>
-            <div class="kpi-tile-footer">
-              <span class="trend-badge neutral">AUTO_PRODUCTION=false</span>
-            </div>
-          </div>
-
-          <div class="kpi-tile">
-            <div class="kpi-tile-header">
-              <span class="kpi-tile-label">Vercel Blob Storage</span>
-              <div class="kpi-icon-pill sky">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                  <polyline points="17 8 12 3 7 8"></polyline>
-                  <line x1="12" y1="3" x2="12" y2="15"></line>
-                </svg>
-              </div>
-            </div>
-            <div class="kpi-tile-value">Client Direct</div>
-            <div class="kpi-tile-footer">
-              <span class="trend-badge positive">Up to 40 MB PNG</span>
-            </div>
-          </div>
-        </div>
-
-        <!-- TAB 1: System Status & Webhook Activity -->
-        <section class="tab-pane active" id="tab-status" role="tabpanel">
-          <div class="view-header">
-            <div class="view-title-wrap">
-              <h1>System Overview & Webhooks</h1>
-              <p>Real-time infrastructure health, Vercel Blob read/write diagnostics, and Shopify webhook events.</p>
-            </div>
-            <div class="view-actions-group">
-              <label style="display:flex; align-items:center; gap:8px; font-size:0.8rem; color:var(--text-secondary); cursor:pointer;">
-                <input type="checkbox" id="autoRefreshToggle" style="accent-color:var(--text-primary);" />
-                <span>Auto-Refresh (25s)</span>
-              </label>
-              <button class="btn btn-secondary" id="runDiagBtn">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                  <polyline points="14 2 14 8 20 8"></polyline>
-                </svg>
-                <span>Run Blob Diagnostic</span>
-              </button>
-              <button class="btn btn-primary" id="refreshStatusBtn">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <polyline points="23 4 23 10 17 10"></polyline>
-                  <polyline points="1 20 1 14 7 14"></polyline>
-                  <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
-                </svg>
-                <span>Refresh</span>
-              </button>
-            </div>
-          </div>
-
-          <!-- Environment variables checklist -->
-          <div class="env-checklist-grid" id="envContainer">
-            <div class="env-tile"><span class="env-name-label">Loading pipeline state…</span></div>
-          </div>
-
-          <!-- Webhook runs table -->
-          <div class="crm-card">
-            <div class="crm-card-header">
-              <h2 class="crm-card-title">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                  <polyline points="14 2 14 8 20 8"></polyline>
-                </svg>
-                <span>Recent Webhook Order Executions</span>
-              </h2>
-              <span style="font-family:var(--font-mono); font-size:0.75rem; color:var(--text-muted);">
-                Refreshed at: <span id="lastRefreshedAt">--:--:--</span>
-              </span>
-            </div>
-            <div class="table-scroll-wrapper">
-              <table class="crm-table">
-                <thead>
-                  <tr>
-                    <th>Timestamp</th>
-                    <th>Shopify Order</th>
-                    <th>Fulfillment Status</th>
-                    <th>ORICAN Items</th>
-                    <th>Action</th>
-                  </tr>
-                </thead>
-                <tbody id="runsTableBody">
-                  <tr>
-                    <td colspan="5" style="text-align:center; padding: 36px; color: var(--text-muted);">
-                      Querying recent webhook executions from Vercel Blob storage…
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </section>
-
-        <!-- TAB 2: Orders & Pipeline Simulation -->
-        <section class="tab-pane" id="tab-orders" role="tabpanel">
-          <div class="view-header">
-            <div class="view-title-wrap">
-              <h1>Order Pipeline & Simulation</h1>
-              <p>Simulate customer checkout fulfillment, inspect Printify payloads, and manage test order states.</p>
-            </div>
-          </div>
-
-          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap: 24px;">
-            <!-- Simulation Card -->
-            <div class="crm-card">
-              <div class="crm-card-header">
-                <h2 class="crm-card-title">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <polygon points="5 3 19 12 5 21 5 3"></polygon>
-                  </svg>
-                  <span>Simulate Checkout Fulfillment</span>
-                </h2>
-              </div>
-              <div class="crm-card-body">
-                <p style="font-size:0.86rem; color:var(--text-secondary); margin-bottom:20px; line-height:1.5;">
-                  Executes the real Shopify-to-Printify order pipeline on a simulated paid order (<strong>Heavy Crew Tee, White L</strong>, Paris delivery address, placeholder design URL). Automatically cancelled in Printify unless preserved.
-                </p>
-
-                <div class="form-group">
-                  <label style="display:flex; align-items:center; gap:8px; font-size:0.82rem; cursor:pointer;">
-                    <input type="checkbox" id="keepTestOrderCheck" style="accent-color:var(--text-primary);" />
-                    <span>Keep order in Printify (Do not auto-cancel)</span>
-                  </label>
-                  <p class="form-hint">Test simulation orders are never submitted to production.</p>
-                </div>
-
-                <button class="btn btn-primary" id="runTestOrderBtn" style="width:100%;">
-                  Trigger Test Order
-                </button>
-
-                <div id="testOrderResultBox" style="display:none; margin-top:24px;">
-                  <span style="display:block; font-size:0.76rem; font-weight:600; text-transform:uppercase; color:var(--text-muted); margin-bottom:8px;">
-                    Printify API Response
-                  </span>
-                  <pre class="code-box" id="testOrderResultCode"></pre>
-                </div>
-              </div>
-            </div>
-
-            <!-- Cancel Order Card -->
-            <div class="crm-card">
-              <div class="crm-card-header">
-                <h2 class="crm-card-title">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <circle cx="12" cy="12" r="10"></circle>
-                    <line x1="15" y1="9" x2="9" y2="15"></line>
-                    <line x1="9" y1="9" x2="15" y2="15"></line>
-                  </svg>
-                  <span>Cancel Existing Test Order</span>
-                </h2>
-              </div>
-              <div class="crm-card-body">
-                <p style="font-size:0.86rem; color:var(--text-secondary); margin-bottom:20px; line-height:1.5;">
-                  Printify allows cancelling test orders once they have progressed out of initial "pending" status. Enter the 24-character hexadecimal ID:
-                </p>
-
-                <div class="form-group">
-                  <label class="form-label" for="cancelTestOrderId">Printify Order ID</label>
-                  <input type="text" class="form-input" id="cancelTestOrderId" placeholder="e.g. 6ac91b5a55a9ebcaa50b9e4f" />
-                </div>
-
-                <button class="btn btn-danger" id="cancelTestOrderBtn" style="width:100%;">
-                  Cancel Order in Printify
-                </button>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <!-- TAB 3: Blanks & Catalog Explorer -->
-        <section class="tab-pane" id="tab-blanks" role="tabpanel">
-          <div class="view-header">
-            <div class="view-title-wrap">
-              <h1>Blanks & Printify Catalog</h1>
-              <p>The 3 standard ORICAN tee blanks produced by <strong>OPT OnDemand (Czechia, Provider 30)</strong> in Shop 7881083.</p>
-            </div>
-            <div class="view-actions-group">
-              <label style="display:flex; align-items:center; gap:8px; font-size:0.8rem; color:var(--text-secondary); cursor:pointer;">
-                <input type="checkbox" id="syncBlankModeCheck" style="accent-color:var(--text-primary);" />
-                <span>Blank Mode (?blank=1)</span>
-              </label>
-              <button class="btn btn-secondary" id="browseCatalogBtn">
-                Explore EU Providers
-              </button>
-              <button class="btn btn-primary" id="syncTemplatesBtn">
-                Sync Templates in Printify
-              </button>
-              <button class="btn btn-secondary" id="refreshBlanksBtn">
-                Refresh
-              </button>
-            </div>
-          </div>
-
-          <!-- Blank Cards Grid -->
-          <div class="blanks-grid" id="blanksContainer">
-            <div style="grid-column: 1 / -1; text-align:center; padding: 48px; color:var(--text-muted);">
-              Loading blank templates and color mockups from Printify…
-            </div>
-          </div>
-        </section>
-
-        <!-- TAB: 3D Model Catalogue (storefront "Catalogue" button) -->
-        <section class="tab-pane" id="tab-models" role="tabpanel">
-          <div class="view-header">
-            <div class="view-title-wrap">
-              <h1>3D Model Catalogue</h1>
-              <p>Models shoppers can pick in the customizer. Each upload is optimized in this browser (GLB, base-color texture only, max 2048 px) and gets a 360° image preview, so shoppers never load 3D until they pick. Changes show on the storefront within a minute.</p>
-            </div>
-            <div class="view-actions-group">
-              <button class="btn btn-secondary" id="refreshModelsBtn">Refresh</button>
-            </div>
-          </div>
-
-          <div class="crm-card" style="max-width: 860px; margin-bottom: 28px;">
-            <div class="crm-card-header">
-              <h2 class="crm-card-title"><span>Add a model</span></h2>
-            </div>
-            <form class="crm-card-body" id="modelForm">
-              <div class="form-group">
-                <label class="form-label" for="modelName">Name</label>
-                <input type="text" class="form-input" id="modelName" placeholder="e.g. Skull" required maxlength="60" />
-                <p class="form-hint">Uploading a name that already exists replaces that model.</p>
-              </div>
-              <div class="form-group">
-                <label class="form-label" for="modelFile">Model file (.glb, .obj or .fbx, max 120 MB)</label>
-                <input type="file" class="form-input" id="modelFile" accept=".glb,.obj,.fbx" required />
-              </div>
-              <div class="form-group">
-                <label class="form-label" for="modelMtl">Material file (.mtl, optional, for .obj)</label>
-                <input type="file" class="form-input" id="modelMtl" accept=".mtl" />
-              </div>
-              <div class="form-group">
-                <label class="form-label" for="modelTexture">Texture image (optional)</label>
-                <input type="file" class="form-input" id="modelTexture" accept="image/png,image/jpeg,image/webp" />
-              </div>
-              <div class="form-group">
-                <label class="form-label" for="modelThumb">Still thumbnail (optional, only used if the 360° preview can't be rendered)</label>
-                <input type="file" class="form-input" id="modelThumb" accept="image/png,image/jpeg,image/webp" />
-              </div>
-              <button type="submit" class="btn btn-primary" id="uploadModelBtn">Upload model</button>
-            </form>
-          </div>
-
-          <div class="blanks-grid" id="modelsContainer"></div>
-        </section>
-
-        <!-- TAB 4: Theme Patcher -->
-        <section class="tab-pane" id="tab-theme" role="tabpanel">
-          <div class="view-header">
-            <div class="view-title-wrap">
-              <h1>Theme Builder & Liquid Patcher</h1>
-              <p>Injects the 3D tee customizer, full print area ratios (4200/4800 at 2048px), and cart preview proof hooks into Shopify theme files.</p>
-            </div>
-          </div>
-
-          <div class="crm-card" style="max-width: 860px;">
-            <div class="crm-card-header">
-              <h2 class="crm-card-title">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <polyline points="16 18 22 12 16 6"></polyline>
-                  <polyline points="8 6 2 12 8 18"></polyline>
-                </svg>
-                <span>Compile & Deploy Patched Theme File</span>
-              </h2>
-            </div>
-            <div class="crm-card-body">
-              <p style="font-size:0.86rem; color:var(--text-secondary); margin-bottom:20px; line-height:1.5;">
-                Pulls the Liquid file from a Shopify CDN URL, validates JavaScript syntax with <span style="font-family:var(--font-mono); font-size:0.78rem;">new Function()</span>, and uploads an uncompressed artifact to Vercel Blob for Shopify's <span style="font-family:var(--font-mono); font-size:0.78rem;">themeFilesUpsert</span>.
-              </p>
-
-              <div class="form-group">
-                <label class="form-label" for="themeSrcUrl">Shopify CDN Source URL</label>
-                <input type="url" class="form-input" id="themeSrcUrl" placeholder="https://cdn.shopify.com/.../layout/orican.liquid" />
-                <p class="form-hint">Must originate from a Shopify CDN URL (e.g., myshopify.com/cdn/ or wearorican.com/cdn/).</p>
-              </div>
-
-              <div class="form-group">
-                <label class="form-label" for="themeModeSelect">Target Patch Mode</label>
-                <select class="form-input" id="themeModeSelect" style="cursor:pointer;">
-                  <option value="default">Standard Layout (layout/orican.liquid)</option>
-                  <option value="cart">Cart Proof Preview (snippets/cart-products.liquid)</option>
-                  <option value="original">Original Diagnostic (Upload without patching)</option>
-                </select>
-              </div>
-
-              <button class="btn btn-primary" id="buildThemeBtn">
-                Build & Deploy to Blob
-              </button>
-
-              <!-- Result Box -->
-              <div id="themeBuildResultBox" style="display:none; margin-top:28px; padding-top:24px; border-top:1px solid var(--border-subtle);">
-                <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:14px;">
-                  <span class="status-pill success">Build Successful</span>
-                  <span style="font-family:var(--font-mono); font-size:0.76rem; color:var(--text-muted);">
-                    SHA: <strong id="themeBuildSha" style="color:var(--text-primary);">--</strong>
-                  </span>
-                </div>
-
-                <div class="form-group">
-                  <label class="form-label">Blob Output URL (Direct Import for Shopify)</label>
-                  <div style="display:flex; gap:10px;">
-                    <input type="text" class="form-input" id="themeBuildUrl" readonly />
-                    <button class="btn btn-secondary" id="copyThemeUrlBtn">Copy URL</button>
-                  </div>
-                </div>
-
-                <span style="display:block; font-size:0.76rem; font-weight:600; text-transform:uppercase; color:var(--text-muted); margin: 16px 0 8px;">
-                  Verification Checks & Previews
-                </span>
-                <pre class="code-box" id="themeBuildDetails"></pre>
-              </div>
-            </div>
-          </div>
-        </section>
-
-      </main>
-
-    </div>
-
-  </div>
-
-  <!-- Auth Key Gate Modal -->
-  <div class="modal-overlay" id="authModal">
-    <div class="modal-card">
-      <div class="modal-header">
-        <h3 class="modal-title">ORICAN Security Access</h3>
-      </div>
-      <form id="authForm">
-        <div class="modal-body">
-          <p style="font-size:0.86rem; color:var(--text-secondary); margin-bottom:20px; line-height:1.5;">
-            Enter your <strong>ADMIN_KEY</strong> to unlock the operations command center. The key will be stored securely in your browser's local storage and attached to all API requests.
-          </p>
-
-          <div class="form-group">
-            <label class="form-label" for="authKeyInput">Admin Secret Key</label>
-            <input type="password" class="form-input" id="authKeyInput" placeholder="Enter ADMIN_KEY…" required autocomplete="current-password" />
-            <div id="authError" style="display:none; color:var(--accent-rose); font-size:0.78rem; margin-top:8px;"></div>
-          </div>
-        </div>
-        <div class="modal-footer">
-          <button type="submit" class="btn btn-primary">
-            Authenticate & Unlock
-          </button>
-        </div>
+        </details>
+        <p class="hint">Uploading a name that already exists replaces that model.</p>
       </form>
-    </div>
+
+      <div class="model-grid" id="modelsContainer"></div>
+    </section>
+
+    <!-- Packs: themed picker sections for events -->
+    <section class="tab-pane" id="tab-packs" role="tabpanel">
+      <div class="page-head">
+        <div>
+          <h1>Packs</h1>
+          <p class="muted">A pack is a themed section at the top of the design picker, e.g. Halloween, shown only between its dates. Each model still follows its own schedule.</p>
+        </div>
+        <button class="btn btn-primary" id="newPackBtn">New pack</button>
+      </div>
+      <div class="pack-list" id="packsContainer"></div>
+    </section>
+
+    <!-- Orders: pipeline health, webhook runs, test orders -->
+    <section class="tab-pane" id="tab-orders" role="tabpanel">
+      <div class="page-head">
+        <div>
+          <h1>Orders</h1>
+          <p class="muted">Paid Shopify orders are sent to Printify. Refreshed <span id="lastRefreshedAt">—</span>.</p>
+        </div>
+        <div class="actions">
+          <button class="btn" id="runDiagBtn">Test Blob storage</button>
+          <button class="btn btn-primary" id="refreshStatusBtn">Refresh</button>
+        </div>
+      </div>
+
+      <div class="env-list" id="envContainer"><p class="muted">Loading…</p></div>
+
+      <div class="panel">
+        <h2>Recent orders</h2>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th>Time</th><th>Order</th><th>Status</th><th>Items</th><th></th></tr>
+            </thead>
+            <tbody id="runsTableBody">
+              <tr><td colspan="5" class="empty">Loading…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="two-col">
+        <div class="panel">
+          <h2>Test order</h2>
+          <p class="muted">Runs the real pipeline on a fake paid order (Heavy Crew Tee, White L, Paris). It's cancelled in Printify right after, unless you keep it. Never sent to production.</p>
+          <label class="check"><input type="checkbox" id="keepTestOrderCheck" /> Keep it in Printify</label>
+          <button class="btn btn-primary" id="runTestOrderBtn">Run test order</button>
+          <div id="testOrderResultBox" hidden>
+            <pre class="code" id="testOrderResultCode"></pre>
+          </div>
+        </div>
+        <div class="panel">
+          <h2>Cancel a test order</h2>
+          <p class="muted">For a kept test order. Paste its 24-character Printify order ID.</p>
+          <label class="field">
+            <span>Printify order ID</span>
+            <input type="text" id="cancelTestOrderId" placeholder="6ac91b5a55a9ebcaa50b9e4f" />
+          </label>
+          <button class="btn btn-danger" id="cancelTestOrderBtn">Cancel order</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Blanks: the Printify tee templates -->
+    <section class="tab-pane" id="tab-blanks" role="tabpanel">
+      <div class="page-head">
+        <div>
+          <h1>Blanks</h1>
+          <p class="muted">The tee templates in Printify shop 7881083, made by OPT OnDemand (Czechia, provider 30).</p>
+        </div>
+        <div class="actions">
+          <button class="btn" id="browseCatalogBtn">EU providers</button>
+          <button class="btn" id="refreshBlanksBtn">Refresh</button>
+        </div>
+      </div>
+
+      <div class="panel sync">
+        <label class="check"><input type="checkbox" id="syncBlankModeCheck" /> Blank mode (transparent mockups)</label>
+        <button class="btn btn-primary" id="syncTemplatesBtn">Sync templates in Printify</button>
+      </div>
+
+      <div class="blank-grid" id="blanksContainer"><p class="muted">Loading…</p></div>
+    </section>
+
+    <!-- Theme: patch a Shopify layout file -->
+    <section class="tab-pane" id="tab-theme" role="tabpanel">
+      <div class="page-head">
+        <div>
+          <h1>Theme</h1>
+          <p class="muted">Patches a Shopify theme file with the ORICAN customizer wiring and stores the result in Blob, ready for import. The live theme isn't touched.</p>
+        </div>
+      </div>
+
+      <div class="panel narrow">
+        <label class="field">
+          <span>Shopify CDN URL of the file</span>
+          <input type="url" id="themeSrcUrl" placeholder="https://cdn.shopify.com/.../layout/orican.liquid" />
+        </label>
+        <label class="field">
+          <span>What to build</span>
+          <select id="themeModeSelect">
+            <option value="default">Layout (layout/orican.liquid)</option>
+            <option value="cart">Cart preview (snippets/cart-products.liquid)</option>
+            <option value="original">Original, unpatched (diagnostic)</option>
+          </select>
+        </label>
+        <button class="btn btn-primary" id="buildThemeBtn">Build</button>
+
+        <div id="themeBuildResultBox" hidden>
+          <label class="field">
+            <span>Result URL · SHA <strong id="themeBuildSha">—</strong></span>
+            <div class="inline">
+              <input type="text" id="themeBuildUrl" readonly />
+              <button class="btn" id="copyThemeUrlBtn" type="button">Copy</button>
+            </div>
+          </label>
+          <pre class="code" id="themeBuildDetails"></pre>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Admin key -->
+  <div class="modal" id="authModal">
+    <form class="modal-card" id="authForm">
+      <h3>Admin key</h3>
+      <p class="muted">Enter your ADMIN_KEY. It's kept in this browser only.</p>
+      <input type="password" id="authKeyInput" placeholder="ADMIN_KEY" required autocomplete="current-password" />
+      <p class="error" id="authError" hidden></p>
+      <button type="submit" class="btn btn-primary">Unlock</button>
+    </form>
   </div>
 
-  <!-- JSON Inspector Modal -->
-  <div class="modal-overlay" id="jsonModal">
-    <div class="modal-card" style="max-width: 780px;">
-      <div class="modal-header">
-        <h3 class="modal-title" id="jsonModalTitle">Raw Payload Details</h3>
-        <button class="icon-btn" id="closeJsonModal" aria-label="Close modal">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <line x1="18" y1="6" x2="6" y2="18"></line>
-            <line x1="6" y1="6" x2="18" y2="18"></line>
-          </svg>
+  <!-- Model schedule -->
+  <div class="modal" id="scheduleModal">
+    <form class="modal-card" id="scheduleForm">
+      <h3>Schedule <span id="scheduleName"></span></h3>
+      <p class="muted">Leave a date empty for no limit. Times are in your local time zone.</p>
+      <label class="field"><span>Show from</span><input type="datetime-local" id="scheduleFrom" /></label>
+      <label class="field"><span>Hide after</span><input type="datetime-local" id="scheduleUntil" /></label>
+      <div class="modal-actions">
+        <button type="button" class="btn" data-close-modal>Cancel</button>
+        <button type="button" class="btn" id="scheduleClearBtn">Always show</button>
+        <button type="submit" class="btn btn-primary">Save</button>
+      </div>
+    </form>
+  </div>
+
+  <!-- Pack editor -->
+  <div class="modal" id="packModal">
+    <form class="modal-card wide" id="packForm">
+      <h3 id="packModalTitle">New pack</h3>
+      <label class="field"><span>Name (shown to shoppers)</span><input type="text" id="packName" placeholder="e.g. Halloween" maxlength="40" required /></label>
+      <div class="field-row">
+        <label class="field"><span>Starts (optional)</span><input type="datetime-local" id="packFrom" /></label>
+        <label class="field"><span>Ends (optional)</span><input type="datetime-local" id="packUntil" /></label>
+      </div>
+      <div class="field"><span>Models in this pack</span></div>
+      <div class="pick-grid" id="packModels"></div>
+      <div class="modal-actions">
+        <button type="button" class="btn" data-close-modal>Cancel</button>
+        <button type="submit" class="btn btn-primary" id="packSaveBtn">Save pack</button>
+      </div>
+    </form>
+  </div>
+
+  <!-- JSON viewer -->
+  <div class="modal" id="jsonModal">
+    <div class="modal-card wide">
+      <div class="modal-head">
+        <h3 id="jsonModalTitle">Details</h3>
+        <button class="icon-btn" id="closeJsonModal" aria-label="Close">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"></path></svg>
         </button>
       </div>
-      <div class="modal-body">
-        <pre class="code-box" id="jsonModalCode" style="max-height: 520px;"></pre>
-      </div>
-      <div class="modal-footer">
-        <button class="btn btn-secondary" id="copyJsonBtn">Copy JSON</button>
-      </div>
+      <pre class="code tall" id="jsonModalCode"></pre>
+      <button class="btn" id="copyJsonBtn">Copy JSON</button>
     </div>
   </div>
 
-  <!-- Toast Notification Container -->
-  <div class="toast-container" id="toastContainer"></div>
+  <div class="toasts" id="toastContainer" aria-live="polite"></div>
 
-  <!-- Application Script -->
   <script src="/admin.js"></script>
 </body>
 </html>

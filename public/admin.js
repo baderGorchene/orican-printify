@@ -1,6 +1,5 @@
 /**
- * ORICAN Printify Admin & Operations CRM
- * Client Application Logic
+ * ORICAN Admin: models catalogue, orders, blanks and theme tools.
  */
 
 (function () {
@@ -9,9 +8,7 @@
   // State
   const state = {
     key: localStorage.getItem('orican_admin_key') || new URLSearchParams(window.location.search).get('key') || '',
-    theme: localStorage.getItem('orican_theme') || 'dark',
-    activeTab: 'status',
-    autoRefreshTimer: null,
+    activeTab: 'models',
     blanksData: null,
     statusData: null,
     catalogData: null
@@ -19,7 +16,6 @@
 
   // DOM Elements
   const el = {
-    themeToggle: document.getElementById('themeToggle'),
     lockBtn: document.getElementById('lockBtn'),
     authModal: document.getElementById('authModal'),
     authForm: document.getElementById('authForm'),
@@ -33,16 +29,13 @@
     closeJsonModal: document.getElementById('closeJsonModal'),
     copyJsonBtn: document.getElementById('copyJsonBtn'),
     toastContainer: document.getElementById('toastContainer'),
-    globalSearchInput: document.getElementById('globalSearchInput'),
 
     // Status Tab Elements
     refreshStatusBtn: document.getElementById('refreshStatusBtn'),
     runDiagBtn: document.getElementById('runDiagBtn'),
-    autoRefreshToggle: document.getElementById('autoRefreshToggle'),
     envContainer: document.getElementById('envContainer'),
     runsTableBody: document.getElementById('runsTableBody'),
     lastRefreshedAt: document.getElementById('lastRefreshedAt'),
-    kpiProdMode: document.getElementById('kpiProdMode'),
 
     // Orders Tab Elements
     runTestOrderBtn: document.getElementById('runTestOrderBtn'),
@@ -72,30 +65,14 @@
 
   // Initialize
   function init() {
-    applyTheme(state.theme);
     setupEvents();
+    loadModels(); // public list, no key needed
 
     if (!state.key) {
       showAuthModal();
     } else {
       verifyKeyAndLoad();
     }
-  }
-
-  // Theme Management
-  function applyTheme(theme) {
-    state.theme = theme;
-    document.documentElement.setAttribute('data-theme', theme);
-    localStorage.setItem('orican_theme', theme);
-    if (el.themeToggle) {
-      el.themeToggle.innerHTML = theme === 'light'
-        ? '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>'
-        : '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>';
-    }
-  }
-
-  function toggleTheme() {
-    applyTheme(state.theme === 'dark' ? 'light' : 'dark');
   }
 
   // Authentication & API Client
@@ -107,7 +84,7 @@
 
   function hideAuthModal() {
     el.authModal.classList.remove('open');
-    el.authError.style.display = 'none';
+    el.authError.hidden = true;
   }
 
   async function apiFetch(endpoint, options = {}) {
@@ -151,7 +128,7 @@
       renderStatus(data);
     } catch (err) {
       el.authError.textContent = err.message || 'Invalid admin key';
-      el.authError.style.display = 'block';
+      el.authError.hidden = false;
       showAuthModal();
     }
   }
@@ -168,7 +145,7 @@
       pane.classList.toggle('active', pane.id === `tab-${tabId}`);
     });
 
-    if (tabId === 'status' && !state.statusData) {
+    if (tabId === 'orders' && !state.statusData) {
       loadStatus();
     } else if (tabId === 'blanks' && !state.blanksData) {
       loadBlanks();
@@ -204,11 +181,7 @@
       el.lastRefreshedAt.textContent = new Date().toLocaleTimeString();
     }
 
-    // Render Env Checklist
     const env = data.env || {};
-    if (el.kpiProdMode) {
-      el.kpiProdMode.textContent = env.AUTO_PRODUCTION ? 'Auto-Production' : 'Manual Approval';
-    }
 
     const envEntries = [
       { key: 'PRINTIFY_TOKEN', label: 'Printify Token', ok: !!env.PRINTIFY_TOKEN, desc: 'Bearer token for Printify API v1' },
@@ -219,27 +192,16 @@
     ];
 
     el.envContainer.innerHTML = envEntries.map(e => `
-      <div class="env-tile">
-        <div>
-          <div class="env-name-label">${e.label}</div>
-          <div class="env-desc-label">${e.desc}</div>
-        </div>
-        <span class="status-pill ${e.ok ? 'success' : 'error'}">
-          ${e.ok ? 'OK' : 'MISSING'}
-        </span>
+      <div class="env-item">
+        <div><b>${e.label}</b><small>${e.desc}</small></div>
+        <span><span class="tag ${e.ok ? 'ok' : (e.key === 'AUTO_PRODUCTION' ? 'warn' : 'bad')}">${e.ok ? 'OK' : (e.key === 'AUTO_PRODUCTION' ? 'Off' : 'Missing')}</span></span>
       </div>
     `).join('');
 
     // Render Webhook Runs Table
     const runs = data.runs || [];
     if (!runs.length) {
-      el.runsTableBody.innerHTML = `
-        <tr>
-          <td colspan="5" style="text-align:center; padding: 36px; color: var(--text-muted);">
-            No order webhook executions logged in Blob storage yet.
-          </td>
-        </tr>
-      `;
+      el.runsTableBody.innerHTML = '<tr><td colspan="5" class="empty">No orders yet.</td></tr>';
       return;
     }
 
@@ -250,21 +212,17 @@
     el.runsTableBody.innerHTML = runs.map((run, idx) => {
       const hasError = !!run.error;
       const skipped = !!run.skipped;
-      const statusClass = hasError ? 'status-pill error' : skipped ? 'status-pill warning' : 'status-pill success';
-      const statusText = hasError ? run.error : skipped ? `Skipped: ${run.skipped}` : 'Fulfillment Sent';
+      const statusClass = hasError ? 'tag bad' : skipped ? 'tag warn' : 'tag ok';
+      const statusText = hasError ? run.error : skipped ? `Skipped: ${run.skipped}` : 'Sent to Printify';
       const timeStr = run.at ? new Date(run.at).toLocaleString() : 'Recent';
 
       return `
         <tr>
-          <td><span style="font-family:var(--font-mono); font-size:0.75rem;">${timeStr}</span></td>
-          <td><strong style="color:var(--text-primary);">${run.order || '#TEST'}</strong></td>
+          <td class="time">${timeStr}</td>
+          <td><b>${run.order || '#TEST'}</b></td>
           <td><span class="${statusClass}">${statusText}</span></td>
-          <td><span style="font-weight:600;">${run.items || run.line_items || 0}</span> items</td>
-          <td>
-            <button class="btn btn-secondary btn-sm inspect-run-btn" data-run-index="${idx}">
-              Inspect Payload
-            </button>
-          </td>
+          <td>${run.items || run.line_items || 0}</td>
+          <td><button class="btn btn-sm inspect-run-btn" data-run-index="${idx}">Details</button></td>
         </tr>
       `;
     }).join('');
@@ -281,11 +239,11 @@
   async function runTestOrder() {
     try {
       el.runTestOrderBtn.disabled = true;
-      el.runTestOrderBtn.textContent = 'Simulating…';
+      el.runTestOrderBtn.textContent = 'Running…';
       const keep = el.keepTestOrderCheck.checked ? '?keep=1' : '';
       const result = await apiFetch(`/api/test-order${keep}`, { method: 'POST' });
 
-      el.testOrderResultBox.style.display = 'block';
+      el.testOrderResultBox.hidden = false;
       el.testOrderResultCode.textContent = JSON.stringify(result, null, 2);
 
       if (result.cancelled && !result.cancelled.error) {
@@ -299,7 +257,7 @@
       showToast(`Simulation failed: ${err.message}`, 'error');
     } finally {
       el.runTestOrderBtn.disabled = false;
-      el.runTestOrderBtn.textContent = 'Trigger Test Order';
+      el.runTestOrderBtn.textContent = 'Run test order';
     }
   }
 
@@ -320,11 +278,10 @@
       showToast(`Cancel failed: ${err.message}`, 'error');
     } finally {
       el.cancelTestOrderBtn.disabled = false;
-      el.cancelTestOrderBtn.textContent = 'Cancel Order in Printify';
+      el.cancelTestOrderBtn.textContent = 'Cancel order';
     }
   }
 
-  // --- Module 3: Blanks & Catalog Explorer ---
   // --- 3D Model Catalogue ---
   // Every model is optimized here before upload, so the storefront downloads as little as possible:
   // FBX/OBJ become GLB, only the base color texture is kept (it's the only map the customizer uses),
@@ -339,33 +296,40 @@
   async function loadModels() {
     const box = document.getElementById('modelsContainer');
     try {
-      const res = await fetch('/api/models', { cache: 'no-store' });
+      const res = await fetch('/api/models?view=all', { cache: 'no-store' });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      state.modelsData = await res.json();
+      const data = await res.json();
+      state.modelsData = data.models;
+      state.packs = data.packs || [];
+      renderPacks();
       box.innerHTML = state.modelsData.length ? state.modelsData.map(m => {
-        const kind = m.model.split('?')[0].split('.').pop().toUpperCase();
+        // The spin strip plays on hover (CSS); models without one show their still thumbnail.
         const preview = m.spin
-          ? `<div class="blank-mockup-img" role="img" aria-label="${m.name}" style="background:url('${m.spin}') 0 0 / ${SPIN_FRAMES * 100}% 100% no-repeat;"></div>`
-          : `<img class="blank-mockup-img" src="${m.thumb || '/orican-placeholder.png'}" alt="${m.name}" />`;
+          ? `<div class="model-preview spin" style="background-image:url('${m.spin}')" role="img" aria-label="${m.name}"></div>`
+          : m.thumb
+            ? `<div class="model-preview still" style="background-image:url('${m.thumb}')" role="img" aria-label="${m.name}"></div>`
+            : '<div class="model-preview none" aria-hidden="true">3D</div>';
+        const heavy = m.size > MODEL_WARN_BYTES;
+        const when = windowTag(m);
         return `
-        <div class="blank-crm-card">
-          <div class="blank-stage">
-            <span class="blank-blueprint-pill">${kind}${m.texture ? ' + texture' : ''} • ${fmtSize(m.size)}</span>
-            ${preview}
-          </div>
-          <div class="blank-card-details">
-            <div class="blank-header-row">
-              <h3 class="blank-name-title" style="text-transform:capitalize;">${m.name}</h3>
-              <div style="display:flex; gap:8px;">
-                ${m.spin ? '' : `<button class="btn btn-secondary btn-sm" data-optimize-model="${m.slug}">Optimize</button>`}
-                <button class="btn btn-danger btn-sm" data-delete-model="${m.slug}">Delete</button>
-              </div>
+        <div class="model-card">
+          ${preview}
+          <div class="model-body">
+            <span class="model-name" title="${m.name}">${m.name}</span>
+            <div class="model-meta">
+              <span>${fmtSize(m.size)}</span>
+              ${m.spin ? '' : '<span class="tag warn" title="Shoppers download the full file and see no preview">Not optimized</span>'}
+              ${heavy && m.spin ? '<span class="tag bad" title="The mesh itself is heavy: decimating it in Blender helps most">Heavy</span>' : ''}
+              ${when ? `<span class="tag ${when.cls}">${when.label}</span>` : ''}
             </div>
-            ${m.spin ? '' : '<p class="form-hint">Not optimized yet: shoppers download the full file and see no spin preview.</p>'}
-            ${m.size > MODEL_WARN_BYTES ? `<p class="form-hint" style="color:#e5484d;">Still over ${fmtSize(MODEL_WARN_BYTES)} after optimizing: the mesh itself is heavy. Decimating it in Blender helps most.</p>` : ''}
+            <div class="model-actions">
+              ${m.spin ? '' : `<button class="btn btn-sm btn-primary" data-optimize-model="${m.slug}">Optimize</button>`}
+              <button class="btn btn-sm" data-schedule-model="${m.slug}">Schedule</button>
+              <button class="btn btn-sm btn-danger" data-delete-model="${m.slug}">Delete</button>
+            </div>
           </div>
         </div>`;
-      }).join('') : '<div style="grid-column:1 / -1; text-align:center; padding:48px; color:var(--text-muted);">No models yet. Add one above.</div>';
+      }).join('') : '<p class="empty">No models yet. Upload one above.</p>';
     } catch (err) {
       showToast(`Failed to load models: ${err.message}`, 'error');
     }
@@ -585,6 +549,155 @@
     }
   }
 
+  // --- Schedules & packs (saved together as one config by /api/models) ---
+  const pad = (n) => String(n).padStart(2, '0');
+  // ISO (UTC) <-> <input type="datetime-local"> value in the admin's local time.
+  const toLocalInput = (iso) => {
+    if (!iso) return '';
+    const d = new Date(iso);
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  };
+  const fromLocalInput = (v) => (v ? new Date(v).toISOString() : null);
+  const fmtDay = (iso) => new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+
+  // Status of an optional { from, until } window, or null when there are no dates.
+  function windowTag(w) {
+    const now = Date.now();
+    if (w.until && Date.parse(w.until) <= now) return { label: 'Ended', cls: 'bad' };
+    if (w.from && Date.parse(w.from) > now) return { label: `Starts ${fmtDay(w.from)}`, cls: 'warn' };
+    if (w.until) return { label: `Ends ${fmtDay(w.until)}`, cls: 'ok' };
+    if (w.from) return { label: 'Live', cls: 'ok' };
+    return null;
+  }
+
+  function currentConfig() {
+    const models = {};
+    (state.modelsData || []).forEach(m => {
+      if (m.from || m.until) models[m.slug] = { from: m.from, until: m.until };
+    });
+    return { models, packs: state.packs || [] };
+  }
+
+  async function saveConfig(cfg, okMessage) {
+    await apiFetch('/api/models', { method: 'POST', body: { action: 'config', config: cfg } });
+    showToast(okMessage, 'success');
+    loadModels();
+  }
+
+  const openModal = (id) => document.getElementById(id).classList.add('open');
+  const closeModals = () => document.querySelectorAll('.modal.open').forEach(m => {
+    if (m.id !== 'authModal') m.classList.remove('open');
+  });
+
+  // Model schedule dialog
+  function openSchedule(slug) {
+    const m = state.modelsData.find(x => x.slug === slug);
+    if (!m) return;
+    state.scheduleSlug = slug;
+    document.getElementById('scheduleName').textContent = m.name;
+    document.getElementById('scheduleFrom').value = toLocalInput(m.from);
+    document.getElementById('scheduleUntil').value = toLocalInput(m.until);
+    openModal('scheduleModal');
+  }
+
+  async function saveSchedule(from, until) {
+    if (!state.key) return showAuthModal();
+    const cfg = currentConfig();
+    const slug = state.scheduleSlug;
+    if (from || until) cfg.models[slug] = { from, until };
+    else delete cfg.models[slug];
+    try {
+      await saveConfig(cfg, from || until ? 'Schedule saved' : 'Model always shown');
+      closeModals();
+    } catch (err) {
+      showToast(`Schedule not saved: ${err.message}`, 'error');
+    }
+  }
+
+  // Packs
+  function previewTile(m) {
+    if (m.spin) return `<div class="model-preview spin" style="background-image:url('${m.spin}')"></div>`;
+    if (m.thumb) return `<div class="model-preview still" style="background-image:url('${m.thumb}')"></div>`;
+    return '<div class="model-preview none">3D</div>';
+  }
+
+  function renderPacks() {
+    const box = document.getElementById('packsContainer');
+    const bySlug = Object.fromEntries((state.modelsData || []).map(m => [m.slug, m]));
+    box.innerHTML = state.packs.length ? state.packs.map(p => {
+      const members = p.models.map(s => bySlug[s]).filter(Boolean);
+      const when = windowTag(p) || { label: 'Always on', cls: 'ok' };
+      const dates = [p.from && `from ${fmtDay(p.from)}`, p.until && `until ${fmtDay(p.until)}`].filter(Boolean).join(' ') || 'no dates';
+      return `
+        <div class="pack-row">
+          <div class="pack-thumbs">${members.slice(0, 5).map(previewTile).join('')}</div>
+          <div class="pack-main">
+            <b>${p.name.replace(/</g, '&lt;')}</b>
+            <small>${members.length} model${members.length === 1 ? '' : 's'} · ${dates}</small>
+          </div>
+          <span class="tag ${when.cls}">${when.label}</span>
+          <button class="btn btn-sm" data-edit-pack="${p.id}">Edit</button>
+          <button class="btn btn-sm btn-danger" data-delete-pack="${p.id}">Delete</button>
+        </div>`;
+    }).join('') : '<p class="empty">No packs yet. Create one for an event like Halloween or Christmas.</p>';
+  }
+
+  function openPack(id) {
+    const p = state.packs.find(x => x.id === id) || { id: null, name: '', from: null, until: null, models: [] };
+    state.editPackId = p.id;
+    document.getElementById('packModalTitle').textContent = p.id ? `Edit ${p.name}` : 'New pack';
+    document.getElementById('packName').value = p.name;
+    document.getElementById('packFrom').value = toLocalInput(p.from);
+    document.getElementById('packUntil').value = toLocalInput(p.until);
+    const chosen = new Set(p.models);
+    document.getElementById('packModels').innerHTML = (state.modelsData || []).map(m => `
+      <label class="pick">
+        <input type="checkbox" value="${m.slug}" ${chosen.has(m.slug) ? 'checked' : ''} />
+        ${previewTile(m)}
+        <span title="${m.name}">${m.name}</span>
+      </label>`).join('') || '<p class="muted">Upload models first.</p>';
+    openModal('packModal');
+  }
+
+  async function savePack(e) {
+    e.preventDefault();
+    if (!state.key) return showAuthModal();
+    const name = document.getElementById('packName').value.trim();
+    const models = [...document.querySelectorAll('#packModels input:checked')].map(i => i.value);
+    if (!models.length) return showToast('Pick at least one model', 'error');
+    const pack = {
+      id: state.editPackId || `${name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 30) || 'pack'}-${Math.random().toString(36).slice(2, 6)}`,
+      name,
+      from: fromLocalInput(document.getElementById('packFrom').value),
+      until: fromLocalInput(document.getElementById('packUntil').value),
+      models,
+    };
+    const cfg = currentConfig();
+    cfg.packs = state.editPackId ? cfg.packs.map(p => (p.id === pack.id ? pack : p)) : [...cfg.packs, pack];
+    const btn = document.getElementById('packSaveBtn');
+    btn.disabled = true;
+    try {
+      await saveConfig(cfg, `Pack "${name}" saved`);
+      closeModals();
+    } catch (err) {
+      showToast(`Pack not saved: ${err.message}`, 'error');
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  async function deletePack(id) {
+    const p = state.packs.find(x => x.id === id);
+    if (!p || !confirm(`Delete pack "${p.name}"? Its models stay in the catalogue.`)) return;
+    const cfg = currentConfig();
+    cfg.packs = cfg.packs.filter(x => x.id !== id);
+    try {
+      await saveConfig(cfg, `Pack "${p.name}" deleted`);
+    } catch (err) {
+      showToast(`Delete failed: ${err.message}`, 'error');
+    }
+  }
+
   async function loadBlanks() {
     try {
       el.refreshBlanksBtn.disabled = true;
@@ -612,52 +725,17 @@
       const costRange = minCost === maxCost ? `$${minCost}` : `$${minCost} - $${maxCost}`;
 
       return `
-        <div class="blank-crm-card" data-blank-index="${bIdx}">
-          <div class="blank-stage">
-            <span class="blank-blueprint-pill">${b.key} • Blueprint ${b.blueprint_id}</span>
-            <img class="blank-mockup-img" id="mockup-${bIdx}" src="${initialMockup}" alt="${b.name}" />
-          </div>
-
-          <div class="blank-card-details">
-            <div class="blank-header-row">
-              <h3 class="blank-name-title">${b.name}</h3>
-              <span class="blank-provider-subtitle">OPT OnDemand (CZ)</span>
+        <div class="blank-card">
+          <img id="mockup-${bIdx}" src="${initialMockup}" alt="${b.name}" />
+          <div class="blank-body">
+            <div class="blank-title"><h3>${b.name}</h3><small>Blueprint ${b.blueprint_id}</small></div>
+            <div class="swatches">
+              ${colors.map((cName, cIdx) => `<button class="swatch ${cIdx === 0 ? 'active' : ''}" style="background-color:${b.colors[cName]};" title="${cName}" aria-label="${cName}" data-blank-idx="${bIdx}" data-color="${cName}" data-mockup="${(b.mockups && b.mockups[cName]) || ''}"></button>`).join('')}
             </div>
-
-            <div class="swatch-group-wrap">
-              <div class="swatch-header-label">
-                <span>Color Swatches</span>
-                <span id="selected-color-name-${bIdx}" style="color:var(--text-primary); font-weight:600;">${firstColor}</span>
-              </div>
-              <div class="swatch-list-row">
-                ${colors.map((cName, cIdx) => `
-                  <button 
-                    class="color-swatch-circle ${cIdx === 0 ? 'active' : ''}" 
-                    style="background-color: ${b.colors[cName]};" 
-                    title="${cName}"
-                    data-blank-idx="${bIdx}"
-                    data-color="${cName}"
-                    data-mockup="${(b.mockups && b.mockups[cName]) || ''}"
-                  ></button>
-                `).join('')}
-              </div>
-            </div>
-
-            <div class="swatch-group-wrap">
-              <span class="swatch-header-label">Available Sizes (${(b.sizes || []).length})</span>
-              <div class="size-pill-tags">
-                ${(b.sizes || []).map(s => `<span class="size-tag">${s}</span>`).join('')}
-              </div>
-            </div>
-
-            <div class="blank-card-footer">
-              <div>
-                <div style="font-size:0.7rem; color:var(--text-muted); text-transform:uppercase; font-weight:600;">Wholesale Cost</div>
-                <div class="blank-cost-figure">${costRange} USD</div>
-              </div>
-              <button class="btn btn-secondary btn-sm view-variants-btn" data-blank-idx="${bIdx}">
-                View Variants (${(b.variants || []).length})
-              </button>
+            <div class="sizes"><span id="selected-color-name-${bIdx}">${firstColor}</span> · ${(b.sizes || []).join(' ')}</div>
+            <div class="blank-foot">
+              <span>Cost <b>${costRange}</b></span>
+              <button class="btn btn-sm view-variants-btn" data-blank-idx="${bIdx}">Variants (${(b.variants || []).length})</button>
             </div>
           </div>
         </div>
@@ -665,15 +743,15 @@
     }).join('');
 
     // Attach Color Swatch click handlers
-    document.querySelectorAll('.color-swatch-circle').forEach(btn => {
+    document.querySelectorAll('.swatch').forEach(btn => {
       btn.addEventListener('click', () => {
         const bIdx = btn.dataset.blankIdx;
         const colorName = btn.dataset.color;
         const mockupUrl = btn.dataset.mockup;
 
         // Update active class
-        const parentCard = btn.closest('.blank-crm-card');
-        parentCard.querySelectorAll('.color-swatch-circle').forEach(s => s.classList.remove('active'));
+        const parentCard = btn.closest('.blank-card');
+        parentCard.querySelectorAll('.swatch').forEach(s => s.classList.remove('active'));
         btn.classList.add('active');
 
         // Update color label
@@ -720,14 +798,14 @@
       showToast(`Sync failed: ${err.message}`, 'error');
     } finally {
       el.syncTemplatesBtn.disabled = false;
-      el.syncTemplatesBtn.textContent = 'Sync Templates in Printify';
+      el.syncTemplatesBtn.textContent = 'Sync templates in Printify';
     }
   }
 
   async function browseCatalog() {
     try {
       el.browseCatalogBtn.disabled = true;
-      el.browseCatalogBtn.textContent = 'Querying Printify…';
+      el.browseCatalogBtn.textContent = 'Loading…';
       const data = await apiFetch('/api/catalog');
       state.catalogData = data;
       openJsonModal('Printify EU Provider Catalog', data);
@@ -735,7 +813,7 @@
       showToast(`Failed to fetch catalog: ${err.message}`, 'error');
     } finally {
       el.browseCatalogBtn.disabled = false;
-      el.browseCatalogBtn.textContent = 'Explore EU Providers';
+      el.browseCatalogBtn.textContent = 'EU providers';
     }
   }
 
@@ -750,12 +828,12 @@
     const mode = el.themeModeSelect.value;
     try {
       el.buildThemeBtn.disabled = true;
-      el.buildThemeBtn.textContent = 'Compiling & Uploading…';
+      el.buildThemeBtn.textContent = 'Building…';
 
       const url = `/api/theme-build?src=${encodeURIComponent(src)}${mode !== 'default' ? `&mode=${mode}` : ''}`;
       const result = await apiFetch(url, { method: 'POST' });
 
-      el.themeBuildResultBox.style.display = 'block';
+      el.themeBuildResultBox.hidden = false;
       el.themeBuildUrl.value = result.url || '';
       el.themeBuildSha.textContent = result.sha || 'N/A';
       el.themeBuildDetails.textContent = JSON.stringify(result, null, 2);
@@ -765,7 +843,7 @@
       showToast(`Theme build failed: ${err.message}`, 'error');
     } finally {
       el.buildThemeBtn.disabled = false;
-      el.buildThemeBtn.textContent = 'Build & Deploy to Blob';
+      el.buildThemeBtn.textContent = 'Build';
     }
   }
 
@@ -783,21 +861,11 @@
   function showToast(message, type = 'info') {
     const toast = document.createElement('div');
     toast.className = `toast ${type}`;
-
-    let icon = '<svg class="toast-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>';
-    if (type === 'success') {
-      icon = '<svg class="toast-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>';
-    } else if (type === 'error') {
-      icon = '<svg class="toast-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>';
-    }
-
-    toast.innerHTML = `${icon}<span>${message}</span>`;
+    toast.textContent = message;
     el.toastContainer.appendChild(toast);
 
     setTimeout(() => {
       toast.style.opacity = '0';
-      toast.style.transform = 'translateX(100%)';
-      toast.style.transition = 'all 0.3s ease-out';
       setTimeout(() => toast.remove(), 300);
     }, 4500);
   }
@@ -815,27 +883,8 @@
     });
   }
 
-  // Filter search
-  function handleSearch(query) {
-    const q = query.toLowerCase().trim();
-    if (!q) {
-      if (state.statusData && state.statusData.runs) renderRunsTable(state.statusData.runs);
-      return;
-    }
-
-    if (state.statusData && state.statusData.runs) {
-      const filtered = state.statusData.runs.filter(r => 
-        JSON.stringify(r).toLowerCase().includes(q)
-      );
-      renderRunsTable(filtered);
-    }
-  }
-
   // Event Listeners
   function setupEvents() {
-    // Theme toggle
-    if (el.themeToggle) el.themeToggle.addEventListener('click', toggleTheme);
-
     // Lock button
     if (el.lockBtn) {
       el.lockBtn.addEventListener('click', () => {
@@ -857,30 +906,9 @@
       btn.addEventListener('click', () => switchTab(btn.dataset.tab));
     });
 
-    // Global Search
-    if (el.globalSearchInput) {
-      el.globalSearchInput.addEventListener('input', (e) => {
-        handleSearch(e.target.value);
-      });
-    }
-
     // Status events
     if (el.refreshStatusBtn) el.refreshStatusBtn.addEventListener('click', () => loadStatus(false));
     if (el.runDiagBtn) el.runDiagBtn.addEventListener('click', () => loadStatus(true));
-    if (el.autoRefreshToggle) {
-      el.autoRefreshToggle.addEventListener('change', (e) => {
-        if (e.target.checked) {
-          state.autoRefreshTimer = setInterval(() => {
-            if (state.activeTab === 'status') loadStatus(false);
-          }, 25000);
-          showToast('Live auto-refresh enabled (25s interval)', 'info');
-        } else {
-          clearInterval(state.autoRefreshTimer);
-          state.autoRefreshTimer = null;
-          showToast('Auto-refresh disabled', 'info');
-        }
-      });
-    }
 
     // Orders events
     if (el.runTestOrderBtn) el.runTestOrderBtn.addEventListener('click', runTestOrder);
@@ -899,7 +927,26 @@
       if (b) deleteModel(b.dataset.deleteModel);
       const o = e.target.closest('[data-optimize-model]');
       if (o) optimizeExisting(o.dataset.optimizeModel, o);
+      const sc = e.target.closest('[data-schedule-model]');
+      if (sc) openSchedule(sc.dataset.scheduleModel);
     });
+
+    // Schedules & packs
+    document.getElementById('scheduleForm').addEventListener('submit', (e) => {
+      e.preventDefault();
+      saveSchedule(fromLocalInput(document.getElementById('scheduleFrom').value),
+        fromLocalInput(document.getElementById('scheduleUntil').value));
+    });
+    document.getElementById('scheduleClearBtn').addEventListener('click', () => saveSchedule(null, null));
+    document.getElementById('newPackBtn').addEventListener('click', () => openPack(null));
+    document.getElementById('packForm').addEventListener('submit', savePack);
+    document.getElementById('packsContainer').addEventListener('click', (e) => {
+      const ed = e.target.closest('[data-edit-pack]');
+      if (ed) openPack(ed.dataset.editPack);
+      const del = e.target.closest('[data-delete-pack]');
+      if (del) deletePack(del.dataset.deletePack);
+    });
+    document.querySelectorAll('[data-close-modal]').forEach(b => b.addEventListener('click', closeModals));
 
     // Theme events
     if (el.buildThemeBtn) el.buildThemeBtn.addEventListener('click', buildTheme);
@@ -918,19 +965,19 @@
     }
 
     window.addEventListener('keydown', (e) => {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
-        e.preventDefault();
-        if (el.globalSearchInput) el.globalSearchInput.focus();
-      } else if (e.key === 'Escape') {
+      if (e.key === 'Escape') {
         hideJsonModal();
+        closeModals();
       } else if (e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA') {
-        if (e.key === '1') switchTab('status');
-        if (e.key === '2') switchTab('orders');
-        if (e.key === '3') switchTab('blanks');
-        if (e.key === '4') switchTab('theme');
+        if (e.key === '1') switchTab('models');
+        if (e.key === '2') switchTab('packs');
+        if (e.key === '3') switchTab('orders');
+        if (e.key === '4') switchTab('blanks');
+        if (e.key === '5') switchTab('theme');
         if (e.key.toLowerCase() === 'l') showAuthModal();
         if (e.key.toLowerCase() === 'r') {
-          if (state.activeTab === 'status') loadStatus(false);
+          if (state.activeTab === 'models') loadModels();
+          if (state.activeTab === 'orders') loadStatus(false);
           if (state.activeTab === 'blanks') loadBlanks();
         }
       }
