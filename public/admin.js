@@ -326,6 +326,10 @@
 
   // --- Module 3: Blanks & Catalog Explorer ---
   // --- 3D Model Catalogue ---
+  // Big files are the main cause of slow picks in the customizer, so the dashboard flags them.
+  const MODEL_WARN_BYTES = 10 * 1024 * 1024;
+  const fmtSize = (b) => `${(b / 1048576).toFixed(1)} MB`;
+
   async function loadModels() {
     const box = document.getElementById('modelsContainer');
     try {
@@ -335,20 +339,97 @@
       box.innerHTML = state.modelsData.length ? state.modelsData.map(m => `
         <div class="blank-crm-card">
           <div class="blank-stage">
-            <span class="blank-blueprint-pill">${m.model.split('.').pop().toUpperCase()}${m.texture ? ' + texture' : ''}</span>
+            <span class="blank-blueprint-pill">${m.model.split('.').pop().toUpperCase()}${m.texture ? ' + texture' : ''} • ${fmtSize(m.size)}</span>
             <img class="blank-mockup-img" src="${m.thumb || '/orican-placeholder.png'}" alt="${m.name}" />
           </div>
           <div class="blank-card-details">
             <div class="blank-header-row">
               <h3 class="blank-name-title" style="text-transform:capitalize;">${m.name}</h3>
-              <button class="btn btn-danger btn-sm" data-delete-model="${m.slug}">Delete</button>
+              <div style="display:flex; gap:8px;">
+                ${m.thumb ? '' : `<button class="btn btn-secondary btn-sm" data-thumb-model="${m.slug}">Generate thumbnail</button>`}
+                <button class="btn btn-danger btn-sm" data-delete-model="${m.slug}">Delete</button>
+              </div>
             </div>
+            ${m.size > MODEL_WARN_BYTES ? `<p class="form-hint" style="color:#e5484d;">Over ${fmtSize(MODEL_WARN_BYTES)}: shoppers wait longer for this one. A smaller export helps most.</p>` : ''}
           </div>
         </div>`).join('') : '<div style="grid-column:1 / -1; text-align:center; padding:48px; color:var(--text-muted);">No models yet. Add one above.</div>';
     } catch (err) {
       showToast(`Failed to load models: ${err.message}`, 'error');
     }
   }
+
+  // Thumbnails are rendered here with the same three.js r128 loaders the storefront uses, so shoppers
+  // see a real preview without their browser rendering anything.
+  const THREE_CDN = 'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/';
+  const THUMB_LIBS = {
+    glb: [THREE_CDN + 'loaders/GLTFLoader.js'],
+    fbx: [THREE_CDN + 'libs/fflate.min.js', THREE_CDN + 'loaders/FBXLoader.js'],
+    obj: [THREE_CDN + 'loaders/OBJLoader.js'],
+  };
+  const scriptCache = {};
+  const loadScript = (src) => scriptCache[src] || (scriptCache[src] = new Promise((ok, fail) => {
+    const s = document.createElement('script');
+    s.src = src;
+    s.onload = ok;
+    s.onerror = () => { delete scriptCache[src]; fail(new Error(`Could not load ${src}`)); };
+    document.head.appendChild(s);
+  }));
+
+  async function renderThumb(modelFile, textureFile) {
+    const kind = modelFile.name.split('.').pop().toLowerCase();
+    await loadScript('https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js');
+    for (const src of THUMB_LIBS[kind]) await loadScript(src);
+
+    let obj;
+    if (kind === 'glb') {
+      const buf = await modelFile.arrayBuffer();
+      obj = await new Promise((ok, fail) => new THREE.GLTFLoader().parse(buf, '', g => ok(g.scene), fail));
+    } else if (kind === 'fbx') {
+      // Same as the storefront: external texture paths can't resolve, so they become a blank pixel.
+      const mgr = new THREE.LoadingManager();
+      mgr.setURLModifier(u => /^(blob:|data:)/.test(u) ? u : 'data:image/gif;base64,R0lGODlhAQABAAAAACw=');
+      obj = new THREE.FBXLoader(mgr).parse(await modelFile.arrayBuffer(), '');
+    } else {
+      obj = new THREE.OBJLoader().parse(await modelFile.text());
+    }
+
+    if (textureFile) {
+      const url = URL.createObjectURL(textureFile);
+      const tex = await new THREE.TextureLoader().loadAsync(url).finally(() => URL.revokeObjectURL(url));
+      tex.encoding = THREE.sRGBEncoding;
+      tex.flipY = kind !== 'glb';
+      obj.traverse(o => { if (o.isMesh) o.material = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.6 }); });
+    }
+
+    const size = 512;
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
+    try {
+      renderer.setSize(size, size);
+      renderer.outputEncoding = THREE.sRGBEncoding;
+      const scene = new THREE.Scene();
+      scene.add(new THREE.AmbientLight(0xffffff, 0.75));
+      const sun = new THREE.DirectionalLight(0xffffff, 0.9);
+      sun.position.set(2, 3, 4);
+      scene.add(sun, obj);
+
+      // Center the model and frame its bounding sphere.
+      const sphere = new THREE.Box3().setFromObject(obj).getBoundingSphere(new THREE.Sphere());
+      obj.position.sub(sphere.center);
+      const dist = (sphere.radius || 1) / Math.sin(THREE.MathUtils.degToRad(16)) * 1.08;
+      const camera = new THREE.PerspectiveCamera(32, 1, dist / 100, dist * 10);
+      camera.position.set(0, 0, dist);
+      renderer.render(scene, camera);
+      return await new Promise((ok, fail) => renderer.domElement.toBlob(b => b ? ok(b) : fail(new Error('Thumbnail render failed')), 'image/png'));
+    } finally {
+      renderer.dispose();
+      renderer.forceContextLoss();
+    }
+  }
+
+  const uploadModelFile = async (slug, name, f) => {
+    const { upload } = await import('/orican-upload.js');
+    return upload(`models/${slug}/${name}`, f, { access: 'public', handleUploadUrl: '/api/models', clientPayload: state.key });
+  };
 
   async function uploadModel(e) {
     e.preventDefault();
@@ -358,6 +439,9 @@
     const file = (id) => document.getElementById(id).files[0];
     const model = file('modelFile');
     if (!slug || !model) return showToast('Name and model file are required', 'error');
+    const downloadSize = [model, file('modelMtl'), file('modelTexture')].reduce((n, f) => n + (f ? f.size : 0), 0);
+    if (downloadSize > MODEL_WARN_BYTES &&
+        !confirm(`This model is ${fmtSize(downloadSize)}. Shoppers will wait longer for it to load. Upload anyway?`)) return;
     const ext = (f) => f.name.split('.').pop().toLowerCase().replace('jpeg', 'jpg');
     const parts = [[model, `model.${ext(model)}`], [file('modelMtl'), 'model.mtl'],
       [file('modelTexture'), 'texture'], [file('modelThumb'), 'thumb']]
@@ -365,12 +449,19 @@
     const btn = document.getElementById('uploadModelBtn');
     btn.disabled = true;
     try {
+      if (!file('modelThumb')) {
+        btn.textContent = 'Rendering thumbnail…';
+        try {
+          parts.push([await renderThumb(model, file('modelTexture')), 'thumb.png']);
+        } catch (err) {
+          showToast(`No thumbnail (${err.message}). You can generate one later.`, 'error');
+        }
+      }
       // Re-upload under the same name: clear the old folder so stale texture/thumb files don't linger.
       await apiFetch('/api/models', { method: 'POST', body: { action: 'delete', slug } });
-      const { upload } = await import('/orican-upload.js');
       for (const [f, name] of parts) {
         btn.textContent = `Uploading ${name}…`;
-        await upload(`models/${slug}/${name}`, f, { access: 'public', handleUploadUrl: '/api/models', clientPayload: state.key });
+        await uploadModelFile(slug, name, f);
       }
       showToast(`Model "${slug}" uploaded`, 'success');
       e.target.reset();
@@ -380,6 +471,25 @@
     } finally {
       btn.disabled = false;
       btn.textContent = 'Upload model';
+    }
+  }
+
+  async function generateThumb(slug, btn) {
+    if (!state.key) return showAuthModal();
+    const m = (state.modelsData || []).find(x => x.slug === slug);
+    if (!m) return;
+    btn.disabled = true;
+    btn.textContent = 'Rendering…';
+    try {
+      const asFile = async (url) => new File([await (await fetch(url)).blob()], url.split('/').pop());
+      const blob = await renderThumb(await asFile(m.model), m.texture ? await asFile(m.texture) : null);
+      await uploadModelFile(slug, 'thumb.png', blob);
+      showToast(`Thumbnail added to "${slug}"`, 'success');
+      loadModels();
+    } catch (err) {
+      showToast(`Thumbnail failed: ${err.message}`, 'error');
+      btn.disabled = false;
+      btn.textContent = 'Generate thumbnail';
     }
   }
 
@@ -706,6 +816,8 @@
     document.getElementById('modelsContainer').addEventListener('click', (e) => {
       const b = e.target.closest('[data-delete-model]');
       if (b) deleteModel(b.dataset.deleteModel);
+      const t = e.target.closest('[data-thumb-model]');
+      if (t) generateThumb(t.dataset.thumbModel, t);
     });
 
     // Theme events

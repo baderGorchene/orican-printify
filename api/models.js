@@ -1,7 +1,8 @@
 // /api/models - the 3D model catalogue the storefront customizer offers next to "Upload 3D design".
 // Files live in Vercel Blob as models/<slug>/model.<glb|obj|fbx> (+ model.mtl, texture.*, thumb.*);
 // the folder name is the model's name, so there is no manifest to keep in sync.
-//   GET                                         public: [{ slug, name, model, mtl, texture, thumb }]
+//   GET                                         public: [{ slug, name, model, mtl, texture, thumb, size }]
+//                                               (size = bytes the customizer downloads: model + mtl + texture)
 //   POST (from @vercel/blob/client upload())    admin: client-upload token, clientPayload = ADMIN_KEY
 //   POST { action: "delete", slug }             admin (x-admin-key): removes models/<slug>/
 const { handleUpload } = require("@vercel/blob/client");
@@ -16,9 +17,10 @@ function group(blobs) {
   for (const b of blobs) {
     const m = PATH.exec(b.pathname);
     if (!m) continue;
-    const e = (by[m[1]] ||= { slug: m[1], name: m[1].replace(/-/g, " "), model: null, mtl: null, texture: null, thumb: null, at: 0 });
+    const e = (by[m[1]] ||= { slug: m[1], name: m[1].replace(/-/g, " "), model: null, mtl: null, texture: null, thumb: null, size: 0, at: 0 });
     const kind = m[3] === "mtl" ? "mtl" : m[3] ? "model" : m[4];
     e[kind] = b.url;
+    if (kind !== "thumb") e.size += b.size || 0;
     if (kind === "model") e.at = new Date(b.uploadedAt).getTime();
   }
   return Object.values(by)
@@ -75,8 +77,8 @@ module.exports.PATH = PATH;
 if (require.main === module) {
   const assert = require("assert");
   const blobs = [
-    { pathname: "models/skull/model.glb", url: "u1", uploadedAt: "2026-01-01" },
-    { pathname: "models/skull/thumb.png", url: "u2", uploadedAt: "2026-01-01" },
+    { pathname: "models/skull/model.glb", url: "u1", uploadedAt: "2026-01-01", size: 100 },
+    { pathname: "models/skull/thumb.png", url: "u2", uploadedAt: "2026-01-01", size: 7 },
     { pathname: "models/rose/model.obj", url: "u3", uploadedAt: "2026-02-01" },
     { pathname: "models/rose/model.mtl", url: "u4", uploadedAt: "2026-02-01" },
     { pathname: "models/rose/texture.jpg", url: "u5", uploadedAt: "2026-02-01" },
@@ -85,7 +87,8 @@ if (require.main === module) {
   ];
   const g = group(blobs);
   assert.deepStrictEqual(g.map((e) => e.slug), ["rose", "skull"]);
-  assert.deepStrictEqual(g[0], { slug: "rose", name: "rose", model: "u3", mtl: "u4", texture: "u5", thumb: null });
+  assert.deepStrictEqual(g[0], { slug: "rose", name: "rose", model: "u3", mtl: "u4", texture: "u5", thumb: null, size: 0 });
+  assert.strictEqual(g[1].size, 100); // thumb not counted
   assert.strictEqual(g[1].thumb, "u2");
   assert(!PATH.test("models/x/model.exe") && !PATH.test("designs/x.png") && !PATH.test("models/X/model.glb"));
   console.log("models.js ok");
