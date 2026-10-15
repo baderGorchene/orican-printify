@@ -1,5 +1,5 @@
 /**
- * ORICAN Printify Admin Command Center
+ * ORICAN Printify Admin & Operations CRM
  * Client Application Logic
  */
 
@@ -33,6 +33,7 @@
     closeJsonModal: document.getElementById('closeJsonModal'),
     copyJsonBtn: document.getElementById('copyJsonBtn'),
     toastContainer: document.getElementById('toastContainer'),
+    globalSearchInput: document.getElementById('globalSearchInput'),
 
     // Status Tab Elements
     refreshStatusBtn: document.getElementById('refreshStatusBtn'),
@@ -41,6 +42,7 @@
     envContainer: document.getElementById('envContainer'),
     runsTableBody: document.getElementById('runsTableBody'),
     lastRefreshedAt: document.getElementById('lastRefreshedAt'),
+    kpiProdMode: document.getElementById('kpiProdMode'),
 
     // Orders Tab Elements
     runTestOrderBtn: document.getElementById('runTestOrderBtn'),
@@ -87,8 +89,8 @@
     localStorage.setItem('orican_theme', theme);
     if (el.themeToggle) {
       el.themeToggle.innerHTML = theme === 'light'
-        ? '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>'
-        : '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>';
+        ? '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>'
+        : '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>';
     }
   }
 
@@ -145,7 +147,7 @@
       const data = await apiFetch('/api/status');
       hideAuthModal();
       localStorage.setItem('orican_admin_key', state.key);
-      showToast('Authenticated successfully', 'success');
+      showToast('Connected to ORICAN backend', 'success');
       renderStatus(data);
     } catch (err) {
       el.authError.textContent = err.message || 'Invalid admin key';
@@ -166,7 +168,6 @@
       pane.classList.toggle('active', pane.id === `tab-${tabId}`);
     });
 
-    // Auto-load data for the active tab if empty
     if (tabId === 'status' && !state.statusData) {
       loadStatus();
     } else if (tabId === 'blanks' && !state.blanksData) {
@@ -183,7 +184,7 @@
       renderStatus(data);
       if (diag) {
         if (data.blobWrite && data.blobWrite.ok) {
-          showToast('Blob Diagnostic PASSED: Store is public and read/write active', 'success');
+          showToast('Blob Diagnostic PASSED: Storage is public and read/write active', 'success');
         } else {
           showToast(`Blob Diagnostic FAILED: ${data.blobWrite?.error || 'Unknown error'}`, 'error');
         }
@@ -203,21 +204,25 @@
 
     // Render Env Checklist
     const env = data.env || {};
+    if (el.kpiProdMode) {
+      el.kpiProdMode.textContent = env.AUTO_PRODUCTION ? 'Auto-Production' : 'Manual Approval';
+    }
+
     const envEntries = [
-      { key: 'PRINTIFY_TOKEN', label: 'Printify Token', ok: !!env.PRINTIFY_TOKEN },
-      { key: 'SHOPIFY_WEBHOOK_SECRET', label: 'Shopify Webhook Secret', ok: !!env.SHOPIFY_WEBHOOK_SECRET },
-      { key: 'BLOB_READ_WRITE_TOKEN', label: 'Blob Storage Token', ok: !!env.BLOB_READ_WRITE_TOKEN },
-      { key: 'ALLOWED_ORIGINS', label: 'CORS Origins', ok: !!env.ALLOWED_ORIGINS, value: env.ALLOWED_ORIGINS },
-      { key: 'AUTO_PRODUCTION', label: 'Auto Production', ok: env.AUTO_PRODUCTION === true, value: env.AUTO_PRODUCTION ? 'TRUE' : 'FALSE' }
+      { key: 'PRINTIFY_TOKEN', label: 'Printify Token', ok: !!env.PRINTIFY_TOKEN, desc: 'Bearer token for Printify API v1' },
+      { key: 'SHOPIFY_WEBHOOK_SECRET', label: 'Shopify Webhook Secret', ok: !!env.SHOPIFY_WEBHOOK_SECRET, desc: 'HMAC SHA-256 signing secret' },
+      { key: 'BLOB_READ_WRITE_TOKEN', label: 'Vercel Blob Storage', ok: !!env.BLOB_READ_WRITE_TOKEN, desc: 'Public storage for customer proofs' },
+      { key: 'ALLOWED_ORIGINS', label: 'CORS Origins', ok: !!env.ALLOWED_ORIGINS, desc: env.ALLOWED_ORIGINS || 'CORS origins allowlist' },
+      { key: 'AUTO_PRODUCTION', label: 'Auto Production Mode', ok: env.AUTO_PRODUCTION === true, desc: env.AUTO_PRODUCTION ? 'Direct to production' : 'Hold for manual review' }
     ];
 
     el.envContainer.innerHTML = envEntries.map(e => `
-      <div class="env-card">
-        <div class="env-info">
-          <span class="env-name">${e.label}</span>
-          <span class="env-status-label">${e.value || (e.ok ? 'Configured' : 'Missing')}</span>
+      <div class="env-tile">
+        <div>
+          <div class="env-name-label">${e.label}</div>
+          <div class="env-desc-label">${e.desc}</div>
         </div>
-        <span class="env-badge ${e.ok ? 'ok' : 'missing'}">
+        <span class="status-pill ${e.ok ? 'success' : 'error'}">
           ${e.ok ? 'OK' : 'MISSING'}
         </span>
       </div>
@@ -228,7 +233,7 @@
     if (!runs.length) {
       el.runsTableBody.innerHTML = `
         <tr>
-          <td colspan="5" style="text-align:center; padding: 28px; color: var(--text-muted);">
+          <td colspan="5" style="text-align:center; padding: 36px; color: var(--text-muted);">
             No order webhook executions logged in Blob storage yet.
           </td>
         </tr>
@@ -236,19 +241,23 @@
       return;
     }
 
+    renderRunsTable(runs);
+  }
+
+  function renderRunsTable(runs) {
     el.runsTableBody.innerHTML = runs.map((run, idx) => {
       const hasError = !!run.error;
       const skipped = !!run.skipped;
-      const badgeClass = hasError ? 'badge-danger' : skipped ? 'badge-warning' : 'badge-success';
+      const statusClass = hasError ? 'status-pill error' : skipped ? 'status-pill warning' : 'status-pill success';
       const statusText = hasError ? run.error : skipped ? `Skipped: ${run.skipped}` : 'Fulfillment Sent';
       const timeStr = run.at ? new Date(run.at).toLocaleString() : 'Recent';
 
       return `
         <tr>
-          <td><span class="mono-pill">${timeStr}</span></td>
-          <td><strong>${run.order || '#TEST'}</strong></td>
-          <td><span class="badge ${badgeClass}">${statusText}</span></td>
-          <td>${run.items || run.line_items || 0}</td>
+          <td><span style="font-family:var(--font-mono); font-size:0.75rem;">${timeStr}</span></td>
+          <td><strong style="color:var(--text-primary);">${run.order || '#TEST'}</strong></td>
+          <td><span class="${statusClass}">${statusText}</span></td>
+          <td><span style="font-weight:600;">${run.items || run.line_items || 0}</span> items</td>
           <td>
             <button class="btn btn-secondary btn-sm inspect-run-btn" data-run-index="${idx}">
               Inspect Payload
@@ -258,11 +267,10 @@
       `;
     }).join('');
 
-    // Attach inspect buttons
     document.querySelectorAll('.inspect-run-btn').forEach(btn => {
       btn.addEventListener('click', () => {
         const idx = btn.dataset.runIndex;
-        openJsonModal(`Webhook Log: ${runs[idx].order || 'Execution'}`, runs[idx]);
+        openJsonModal(`Webhook Execution: ${runs[idx].order || 'Run'}`, runs[idx]);
       });
     });
   }
@@ -271,7 +279,7 @@
   async function runTestOrder() {
     try {
       el.runTestOrderBtn.disabled = true;
-      el.runTestOrderBtn.textContent = 'Executing…';
+      el.runTestOrderBtn.textContent = 'Simulating…';
       const keep = el.keepTestOrderCheck.checked ? '?keep=1' : '';
       const result = await apiFetch(`/api/test-order${keep}`, { method: 'POST' });
 
@@ -279,14 +287,14 @@
       el.testOrderResultCode.textContent = JSON.stringify(result, null, 2);
 
       if (result.cancelled && !result.cancelled.error) {
-        showToast('Test order placed and auto-cancelled successfully in Printify', 'success');
+        showToast('Simulated order created & auto-cancelled in Printify', 'success');
       } else if (result.result && result.result.printify_order_id) {
-        showToast(`Test order created: ID ${result.result.printify_order_id}`, 'info');
+        showToast(`Order created in Printify: ID ${result.result.printify_order_id}`, 'info');
       } else {
-        showToast('Test completed', 'info');
+        showToast('Simulation complete', 'info');
       }
     } catch (err) {
-      showToast(`Test order failed: ${err.message}`, 'error');
+      showToast(`Simulation failed: ${err.message}`, 'error');
     } finally {
       el.runTestOrderBtn.disabled = false;
       el.runTestOrderBtn.textContent = 'Trigger Test Order';
@@ -310,7 +318,7 @@
       showToast(`Cancel failed: ${err.message}`, 'error');
     } finally {
       el.cancelTestOrderBtn.disabled = false;
-      el.cancelTestOrderBtn.textContent = 'Cancel Order';
+      el.cancelTestOrderBtn.textContent = 'Cancel Order in Printify';
     }
   }
 
@@ -342,27 +350,27 @@
       const costRange = minCost === maxCost ? `$${minCost}` : `$${minCost} - $${maxCost}`;
 
       return `
-        <div class="blank-card" data-blank-index="${bIdx}">
-          <div class="blank-preview-stage">
-            <span class="blank-mockup-badge">${b.key} • ID ${b.blueprint_id}</span>
+        <div class="blank-crm-card" data-blank-index="${bIdx}">
+          <div class="blank-stage">
+            <span class="blank-blueprint-pill">${b.key} • Blueprint ${b.blueprint_id}</span>
             <img class="blank-mockup-img" id="mockup-${bIdx}" src="${initialMockup}" alt="${b.name}" />
           </div>
 
-          <div class="blank-content">
-            <div class="blank-title-row">
-              <h3 class="blank-title">${b.name}</h3>
-              <span class="blank-blueprint">Provider 30 (OPT OnDemand)</span>
+          <div class="blank-card-details">
+            <div class="blank-header-row">
+              <h3 class="blank-name-title">${b.name}</h3>
+              <span class="blank-provider-subtitle">OPT OnDemand (CZ)</span>
             </div>
 
-            <div class="swatch-group">
-              <div class="swatch-label">
+            <div class="swatch-group-wrap">
+              <div class="swatch-header-label">
                 <span>Color Swatches</span>
-                <span id="selected-color-name-${bIdx}">${firstColor}</span>
+                <span id="selected-color-name-${bIdx}" style="color:var(--text-primary); font-weight:600;">${firstColor}</span>
               </div>
-              <div class="swatch-list">
+              <div class="swatch-list-row">
                 ${colors.map((cName, cIdx) => `
                   <button 
-                    class="swatch-btn ${cIdx === 0 ? 'active' : ''}" 
+                    class="color-swatch-circle ${cIdx === 0 ? 'active' : ''}" 
                     style="background-color: ${b.colors[cName]};" 
                     title="${cName}"
                     data-blank-idx="${bIdx}"
@@ -373,17 +381,17 @@
               </div>
             </div>
 
-            <div class="swatch-group">
-              <span class="swatch-label">Available Sizes (${(b.sizes || []).length})</span>
-              <div class="size-pill-group">
-                ${(b.sizes || []).map(s => `<span class="size-pill">${s}</span>`).join('')}
+            <div class="swatch-group-wrap">
+              <span class="swatch-header-label">Available Sizes (${(b.sizes || []).length})</span>
+              <div class="size-pill-tags">
+                ${(b.sizes || []).map(s => `<span class="size-tag">${s}</span>`).join('')}
               </div>
             </div>
 
-            <div class="blank-meta-row">
+            <div class="blank-card-footer">
               <div>
-                <div style="font-size:0.68rem; color:var(--text-muted); text-transform:uppercase; font-family:var(--font-mono);">Printify Cost</div>
-                <div class="blank-cost-range">${costRange} USD</div>
+                <div style="font-size:0.7rem; color:var(--text-muted); text-transform:uppercase; font-weight:600;">Wholesale Cost</div>
+                <div class="blank-cost-figure">${costRange} USD</div>
               </div>
               <button class="btn btn-secondary btn-sm view-variants-btn" data-blank-idx="${bIdx}">
                 View Variants (${(b.variants || []).length})
@@ -395,15 +403,15 @@
     }).join('');
 
     // Attach Color Swatch click handlers
-    document.querySelectorAll('.swatch-btn').forEach(btn => {
+    document.querySelectorAll('.color-swatch-circle').forEach(btn => {
       btn.addEventListener('click', () => {
         const bIdx = btn.dataset.blankIdx;
         const colorName = btn.dataset.color;
         const mockupUrl = btn.dataset.mockup;
 
         // Update active class
-        const parentCard = btn.closest('.blank-card');
-        parentCard.querySelectorAll('.swatch-btn').forEach(s => s.classList.remove('active'));
+        const parentCard = btn.closest('.blank-crm-card');
+        parentCard.querySelectorAll('.color-swatch-circle').forEach(s => s.classList.remove('active'));
         btn.classList.add('active');
 
         // Update color label
@@ -413,7 +421,7 @@
         // Update mockup image
         const img = document.getElementById(`mockup-${bIdx}`);
         if (img && mockupUrl) {
-          img.style.opacity = '0.4';
+          img.style.opacity = '0.3';
           img.src = mockupUrl;
           img.onload = () => { img.style.opacity = '1'; };
         }
@@ -480,7 +488,7 @@
     const mode = el.themeModeSelect.value;
     try {
       el.buildThemeBtn.disabled = true;
-      el.buildThemeBtn.textContent = 'Building & Uploading to Blob…';
+      el.buildThemeBtn.textContent = 'Compiling & Uploading…';
 
       const url = `/api/theme-build?src=${encodeURIComponent(src)}${mode !== 'default' ? `&mode=${mode}` : ''}`;
       const result = await apiFetch(url, { method: 'POST' });
@@ -490,7 +498,7 @@
       el.themeBuildSha.textContent = result.sha || 'N/A';
       el.themeBuildDetails.textContent = JSON.stringify(result, null, 2);
 
-      showToast('Theme file built and stored in Blob successfully', 'success');
+      showToast('Theme file compiled and stored in Blob successfully', 'success');
     } catch (err) {
       showToast(`Theme build failed: ${err.message}`, 'error');
     } finally {
@@ -545,6 +553,22 @@
     });
   }
 
+  // Filter search
+  function handleSearch(query) {
+    const q = query.toLowerCase().trim();
+    if (!q) {
+      if (state.statusData && state.statusData.runs) renderRunsTable(state.statusData.runs);
+      return;
+    }
+
+    if (state.statusData && state.statusData.runs) {
+      const filtered = state.statusData.runs.filter(r => 
+        JSON.stringify(r).toLowerCase().includes(q)
+      );
+      renderRunsTable(filtered);
+    }
+  }
+
   // Event Listeners
   function setupEvents() {
     // Theme toggle
@@ -570,6 +594,13 @@
     el.navTabs.forEach(btn => {
       btn.addEventListener('click', () => switchTab(btn.dataset.tab));
     });
+
+    // Global Search
+    if (el.globalSearchInput) {
+      el.globalSearchInput.addEventListener('input', (e) => {
+        handleSearch(e.target.value);
+      });
+    }
 
     // Status events
     if (el.refreshStatusBtn) el.refreshStatusBtn.addEventListener('click', () => loadStatus(false));
@@ -615,7 +646,10 @@
     }
 
     window.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape') {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        if (el.globalSearchInput) el.globalSearchInput.focus();
+      } else if (e.key === 'Escape') {
         hideJsonModal();
       } else if (e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA') {
         if (e.key === '1') switchTab('status');
