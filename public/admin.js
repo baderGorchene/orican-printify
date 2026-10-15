@@ -290,7 +290,7 @@
   const MODEL_WARN_BYTES = 10 * 1024 * 1024;
   const MAX_TEXTURE = 2048;
   const SPIN_FRAMES = 12;
-  const SPIN_SIZE = 256;
+  const SPIN_SIZE = 512; // sharp enough for the homepage slider's large cards (~150 KB per model)
   const fmtSize = (b) => `${(b / 1048576).toFixed(1)} MB`;
 
   async function loadModels() {
@@ -323,7 +323,9 @@
               ${when ? `<span class="tag ${when.cls}">${when.label}</span>` : ''}
             </div>
             <div class="model-actions">
-              ${m.spin ? '' : `<button class="btn btn-sm btn-primary" data-optimize-model="${m.slug}">Optimize</button>`}
+              ${m.spin
+                ? `<button class="btn btn-sm" data-optimize-model="${m.slug}" title="Render the 360° preview again (e.g. at the current, sharper size)">Re-render</button>`
+                : `<button class="btn btn-sm btn-primary" data-optimize-model="${m.slug}">Optimize</button>`}
               <button class="btn btn-sm" data-schedule-model="${m.slug}">Schedule</button>
               <button class="btn btn-sm btn-danger" data-delete-model="${m.slug}">Delete</button>
             </div>
@@ -534,7 +536,7 @@
     } catch (err) {
       showToast(`Optimize failed: ${err.message}`, 'error');
       btn.disabled = false;
-      btn.textContent = 'Optimize';
+      btn.textContent = m.spin ? 'Re-render' : 'Optimize';
     }
   }
 
