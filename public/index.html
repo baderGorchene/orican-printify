@@ -427,7 +427,7 @@
           <div class="view-header">
             <div class="view-title-wrap">
               <h1>3D Model Catalogue</h1>
-              <p>Models shoppers can pick in the customizer instead of uploading their own. Changes show on the storefront within a minute.</p>
+              <p>Models shoppers can pick in the customizer. Each upload is optimized in this browser (GLB, base-color texture only, max 2048 px) and gets a 360° image preview, so shoppers never load 3D until they pick. Changes show on the storefront within a minute.</p>
             </div>
             <div class="view-actions-group">
               <button class="btn btn-secondary" id="refreshModelsBtn">Refresh</button>
@@ -457,7 +457,7 @@
                 <input type="file" class="form-input" id="modelTexture" accept="image/png,image/jpeg,image/webp" />
               </div>
               <div class="form-group">
-                <label class="form-label" for="modelThumb">Thumbnail shown to shoppers (optional, square works best)</label>
+                <label class="form-label" for="modelThumb">Still thumbnail (optional, only used if the 360° preview can't be rendered)</label>
                 <input type="file" class="form-input" id="modelThumb" accept="image/png,image/jpeg,image/webp" />
               </div>
               <button type="submit" class="btn btn-primary" id="uploadModelBtn">Upload model</button>

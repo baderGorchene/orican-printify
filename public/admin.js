@@ -326,8 +326,14 @@
 
   // --- Module 3: Blanks & Catalog Explorer ---
   // --- 3D Model Catalogue ---
-  // Big files are the main cause of slow picks in the customizer, so the dashboard flags them.
+  // Every model is optimized here before upload, so the storefront downloads as little as possible:
+  // FBX/OBJ become GLB, only the base color texture is kept (it's the only map the customizer uses),
+  // textures are capped at 2048 px and stored as JPEG unless they need alpha. The picker never loads 3D:
+  // it shows spin.webp, a strip of SPIN_FRAMES pre-rendered angles.
   const MODEL_WARN_BYTES = 10 * 1024 * 1024;
+  const MAX_TEXTURE = 2048;
+  const SPIN_FRAMES = 12;
+  const SPIN_SIZE = 256;
   const fmtSize = (b) => `${(b / 1048576).toFixed(1)} MB`;
 
   async function loadModels() {
@@ -336,32 +342,38 @@
       const res = await fetch('/api/models', { cache: 'no-store' });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       state.modelsData = await res.json();
-      box.innerHTML = state.modelsData.length ? state.modelsData.map(m => `
+      box.innerHTML = state.modelsData.length ? state.modelsData.map(m => {
+        const kind = m.model.split('?')[0].split('.').pop().toUpperCase();
+        const preview = m.spin
+          ? `<div class="blank-mockup-img" role="img" aria-label="${m.name}" style="background:url('${m.spin}') 0 0 / ${SPIN_FRAMES * 100}% 100% no-repeat;"></div>`
+          : `<img class="blank-mockup-img" src="${m.thumb || '/orican-placeholder.png'}" alt="${m.name}" />`;
+        return `
         <div class="blank-crm-card">
           <div class="blank-stage">
-            <span class="blank-blueprint-pill">${m.model.split('.').pop().toUpperCase()}${m.texture ? ' + texture' : ''} • ${fmtSize(m.size)}</span>
-            <img class="blank-mockup-img" src="${m.thumb || '/orican-placeholder.png'}" alt="${m.name}" />
+            <span class="blank-blueprint-pill">${kind}${m.texture ? ' + texture' : ''} • ${fmtSize(m.size)}</span>
+            ${preview}
           </div>
           <div class="blank-card-details">
             <div class="blank-header-row">
               <h3 class="blank-name-title" style="text-transform:capitalize;">${m.name}</h3>
               <div style="display:flex; gap:8px;">
-                ${m.thumb ? '' : `<button class="btn btn-secondary btn-sm" data-thumb-model="${m.slug}">Generate thumbnail</button>`}
+                ${m.spin ? '' : `<button class="btn btn-secondary btn-sm" data-optimize-model="${m.slug}">Optimize</button>`}
                 <button class="btn btn-danger btn-sm" data-delete-model="${m.slug}">Delete</button>
               </div>
             </div>
-            ${m.size > MODEL_WARN_BYTES ? `<p class="form-hint" style="color:#e5484d;">Over ${fmtSize(MODEL_WARN_BYTES)}: shoppers wait longer for this one. A smaller export helps most.</p>` : ''}
+            ${m.spin ? '' : '<p class="form-hint">Not optimized yet: shoppers download the full file and see no spin preview.</p>'}
+            ${m.size > MODEL_WARN_BYTES ? `<p class="form-hint" style="color:#e5484d;">Still over ${fmtSize(MODEL_WARN_BYTES)} after optimizing: the mesh itself is heavy. Decimating it in Blender helps most.</p>` : ''}
           </div>
-        </div>`).join('') : '<div style="grid-column:1 / -1; text-align:center; padding:48px; color:var(--text-muted);">No models yet. Add one above.</div>';
+        </div>`;
+      }).join('') : '<div style="grid-column:1 / -1; text-align:center; padding:48px; color:var(--text-muted);">No models yet. Add one above.</div>';
     } catch (err) {
       showToast(`Failed to load models: ${err.message}`, 'error');
     }
   }
 
-  // Thumbnails are rendered here with the same three.js r128 loaders the storefront uses, so shoppers
-  // see a real preview without their browser rendering anything.
+  // Same three.js release (r128) and loaders as the storefront customizer.
   const THREE_CDN = 'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/';
-  const THUMB_LIBS = {
+  const LOADER_LIBS = {
     glb: [THREE_CDN + 'loaders/GLTFLoader.js'],
     fbx: [THREE_CDN + 'libs/fflate.min.js', THREE_CDN + 'loaders/FBXLoader.js'],
     obj: [THREE_CDN + 'loaders/OBJLoader.js'],
@@ -374,11 +386,13 @@
     s.onerror = () => { delete scriptCache[src]; fail(new Error(`Could not load ${src}`)); };
     document.head.appendChild(s);
   }));
+  const extOf = (f) => f.name.split('?')[0].split('.').pop().toLowerCase();
 
-  async function renderThumb(modelFile, textureFile) {
-    const kind = modelFile.name.split('.').pop().toLowerCase();
+  async function loadObject(modelFile, textureFile) {
+    const kind = extOf(modelFile);
+    if (!LOADER_LIBS[kind]) throw new Error(`Unsupported model type .${kind}`);
     await loadScript('https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js');
-    for (const src of THUMB_LIBS[kind]) await loadScript(src);
+    for (const src of [...LOADER_LIBS[kind], THREE_CDN + 'exporters/GLTFExporter.js']) await loadScript(src);
 
     let obj;
     if (kind === 'glb') {
@@ -393,43 +407,119 @@
       obj = new THREE.OBJLoader().parse(await modelFile.text());
     }
 
+    let tex = null;
     if (textureFile) {
       const url = URL.createObjectURL(textureFile);
-      const tex = await new THREE.TextureLoader().loadAsync(url).finally(() => URL.revokeObjectURL(url));
+      tex = await new THREE.TextureLoader().loadAsync(url).finally(() => URL.revokeObjectURL(url));
       tex.encoding = THREE.sRGBEncoding;
-      tex.flipY = kind !== 'glb';
-      obj.traverse(o => { if (o.isMesh) o.material = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.6 }); });
     }
+    // Keep only what the customizer renders: base color texture and color. Normal/roughness/metal maps
+    // are typically most of a model's weight and the customizer never uses them.
+    obj.traverse(o => {
+      if (!o.isMesh) return;
+      const mats = Array.isArray(o.material) ? o.material : [o.material];
+      const out = mats.map(src => {
+        const img = src && src.map && src.map.image;
+        const map = tex || (img && img.width > 1 ? src.map : null);
+        const alpha = !!src && (src.transparent || src.alphaTest > 0);
+        if (map) map.format = alpha ? THREE.RGBAFormat : THREE.RGBFormat; // RGB -> exported as JPEG
+        return new THREE.MeshStandardMaterial({
+          name: (src && src.name) || '',
+          map,
+          color: map ? 0xffffff : ((src && src.color) || new THREE.Color(0xcccccc)),
+          transparent: alpha,
+          alphaTest: (src && src.alphaTest) || 0,
+          roughness: 0.6,
+          metalness: 0.05,
+          side: THREE.DoubleSide,
+        });
+      });
+      o.material = Array.isArray(o.material) ? out : out[0];
+    });
+    return obj;
+  }
 
-    const size = 512;
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
+  const exportGlb = (obj) => new Promise((ok, fail) => {
     try {
-      renderer.setSize(size, size);
+      new THREE.GLTFExporter().parse(obj, ok, { binary: true, maxTextureSize: MAX_TEXTURE });
+    } catch (err) { fail(err); }
+  });
+
+  // SPIN_FRAMES views around the Y axis side by side in one WebP, played by the picker with CSS steps().
+  async function renderSpin(obj) {
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
+    const strip = document.createElement('canvas');
+    strip.width = SPIN_SIZE * SPIN_FRAMES;
+    strip.height = SPIN_SIZE;
+    const ctx = strip.getContext('2d');
+    const pivot = new THREE.Group();
+    const parent = obj.parent;
+    try {
+      renderer.setSize(SPIN_SIZE, SPIN_SIZE);
       renderer.outputEncoding = THREE.sRGBEncoding;
       const scene = new THREE.Scene();
       scene.add(new THREE.AmbientLight(0xffffff, 0.75));
       const sun = new THREE.DirectionalLight(0xffffff, 0.9);
       sun.position.set(2, 3, 4);
-      scene.add(sun, obj);
-
-      // Center the model and frame its bounding sphere.
+      scene.add(sun, pivot);
+      pivot.add(obj);
+      // Center the model on the pivot and frame its bounding sphere so it never leaves the frame.
       const sphere = new THREE.Box3().setFromObject(obj).getBoundingSphere(new THREE.Sphere());
-      obj.position.sub(sphere.center);
-      const dist = (sphere.radius || 1) / Math.sin(THREE.MathUtils.degToRad(16)) * 1.08;
+      const offset = sphere.center.clone();
+      obj.position.sub(offset);
+      const dist = (sphere.radius || 1) / Math.sin(THREE.MathUtils.degToRad(16)) * 1.05;
       const camera = new THREE.PerspectiveCamera(32, 1, dist / 100, dist * 10);
       camera.position.set(0, 0, dist);
-      renderer.render(scene, camera);
-      return await new Promise((ok, fail) => renderer.domElement.toBlob(b => b ? ok(b) : fail(new Error('Thumbnail render failed')), 'image/png'));
+      for (let i = 0; i < SPIN_FRAMES; i++) {
+        pivot.rotation.y = (i / SPIN_FRAMES) * Math.PI * 2;
+        renderer.render(scene, camera);
+        ctx.drawImage(renderer.domElement, i * SPIN_SIZE, 0);
+      }
+      obj.position.add(offset);
+      return await new Promise((ok, fail) => strip.toBlob(b => b ? ok(b) : fail(new Error('Preview render failed')), 'image/webp', 0.82));
     } finally {
+      pivot.remove(obj);
+      if (parent) parent.add(obj);
       renderer.dispose();
       renderer.forceContextLoss();
     }
   }
 
-  const uploadModelFile = async (slug, name, f) => {
+  // model (+ optional mtl/texture/thumb Files) -> [[Blob, publishedName]] ready to upload.
+  async function optimizeModel(model, mtl, texture, thumb, setStatus) {
+    setStatus('Optimizing…');
+    const parts = [];
+    try {
+      const obj = await loadObject(model, texture);
+      setStatus('Rendering preview…');
+      parts.push([await renderSpin(obj), 'spin.webp']);
+      setStatus('Compressing…');
+      const glb = new Blob([await exportGlb(obj)], { type: 'model/gltf-binary' });
+      // An already-lean GLB can come out bigger after re-encoding; keep whichever is smaller.
+      parts.push(extOf(model) === 'glb' && glb.size >= model.size ? [model, 'model.glb'] : [glb, 'model.glb']);
+    } catch (err) {
+      // Exotic files the exporter can't handle still work, just unoptimized.
+      showToast(`Couldn't optimize (${err.message}); uploading the original files.`, 'error');
+      parts.length = 0;
+      parts.push([model, `model.${extOf(model)}`]);
+      if (mtl) parts.push([mtl, 'model.mtl']);
+      if (texture) parts.push([texture, `texture.${extOf(texture).replace('jpeg', 'jpg')}`]);
+    }
+    if (thumb) parts.push([thumb, `thumb.${extOf(thumb).replace('jpeg', 'jpg')}`]);
+    return parts;
+  }
+
+  // Upload parts, then delete every older file of that model, so it is never missing mid-upload.
+  async function publishModel(slug, parts, keep, setStatus) {
     const { upload } = await import('/orican-upload.js');
-    return upload(`models/${slug}/${name}`, f, { access: 'public', handleUploadUrl: '/api/models', clientPayload: state.key });
-  };
+    const urls = [...keep];
+    for (const [blob, name] of parts) {
+      setStatus(`Uploading ${name} (${fmtSize(blob.size)})…`);
+      const r = await upload(`models/${slug}/${name}`, blob, { access: 'public', handleUploadUrl: '/api/models', clientPayload: state.key });
+      urls.push(r.url);
+    }
+    await apiFetch('/api/models', { method: 'POST', body: { action: 'prune', slug, keep: urls } });
+  }
 
   async function uploadModel(e) {
     e.preventDefault();
@@ -439,31 +529,15 @@
     const file = (id) => document.getElementById(id).files[0];
     const model = file('modelFile');
     if (!slug || !model) return showToast('Name and model file are required', 'error');
-    const downloadSize = [model, file('modelMtl'), file('modelTexture')].reduce((n, f) => n + (f ? f.size : 0), 0);
-    if (downloadSize > MODEL_WARN_BYTES &&
-        !confirm(`This model is ${fmtSize(downloadSize)}. Shoppers will wait longer for it to load. Upload anyway?`)) return;
-    const ext = (f) => f.name.split('.').pop().toLowerCase().replace('jpeg', 'jpg');
-    const parts = [[model, `model.${ext(model)}`], [file('modelMtl'), 'model.mtl'],
-      [file('modelTexture'), 'texture'], [file('modelThumb'), 'thumb']]
-      .filter(([f]) => f).map(([f, n]) => [f, n.includes('.') ? n : `${n}.${ext(f)}`]);
     const btn = document.getElementById('uploadModelBtn');
+    const setStatus = (t) => { btn.textContent = t; };
     btn.disabled = true;
     try {
-      if (!file('modelThumb')) {
-        btn.textContent = 'Rendering thumbnail…';
-        try {
-          parts.push([await renderThumb(model, file('modelTexture')), 'thumb.png']);
-        } catch (err) {
-          showToast(`No thumbnail (${err.message}). You can generate one later.`, 'error');
-        }
-      }
-      // Re-upload under the same name: clear the old folder so stale texture/thumb files don't linger.
-      await apiFetch('/api/models', { method: 'POST', body: { action: 'delete', slug } });
-      for (const [f, name] of parts) {
-        btn.textContent = `Uploading ${name}…`;
-        await uploadModelFile(slug, name, f);
-      }
-      showToast(`Model "${slug}" uploaded`, 'success');
+      const parts = await optimizeModel(model, file('modelMtl'), file('modelTexture'), file('modelThumb'), setStatus);
+      const before = [model, file('modelMtl'), file('modelTexture')].reduce((n, f) => n + (f ? f.size : 0), 0);
+      const after = parts.filter(([, n]) => /^(model|texture)/.test(n)).reduce((n, [b]) => n + b.size, 0);
+      await publishModel(slug, parts, [], setStatus);
+      showToast(`Model "${slug}" uploaded: ${fmtSize(before)} → ${fmtSize(after)}`, 'success');
       e.target.reset();
       loadModels();
     } catch (err) {
@@ -474,22 +548,29 @@
     }
   }
 
-  async function generateThumb(slug, btn) {
+  async function optimizeExisting(slug, btn) {
     if (!state.key) return showAuthModal();
     const m = (state.modelsData || []).find(x => x.slug === slug);
     if (!m) return;
+    const setStatus = (t) => { btn.textContent = t; };
     btn.disabled = true;
-    btn.textContent = 'Rendering…';
     try {
-      const asFile = async (url) => new File([await (await fetch(url)).blob()], url.split('/').pop());
-      const blob = await renderThumb(await asFile(m.model), m.texture ? await asFile(m.texture) : null);
-      await uploadModelFile(slug, 'thumb.png', blob);
-      showToast(`Thumbnail added to "${slug}"`, 'success');
+      setStatus('Downloading…');
+      const asFile = async (url) => {
+        const r = await fetch(url);
+        if (!r.ok) throw new Error(`HTTP ${r.status} for ${url.split('/').pop()}`);
+        return new File([await r.blob()], url.split('/').pop());
+      };
+      const [model, mtl, texture] = await Promise.all([m.model, m.mtl, m.texture].map(u => u ? asFile(u) : null));
+      const parts = await optimizeModel(model, mtl, texture, null, setStatus);
+      const after = parts.filter(([, n]) => /^(model|texture)/.test(n)).reduce((n, [b]) => n + b.size, 0);
+      await publishModel(slug, parts, m.thumb ? [m.thumb] : [], setStatus);
+      showToast(`"${slug}" optimized: ${fmtSize(m.size)} → ${fmtSize(after)}`, 'success');
       loadModels();
     } catch (err) {
-      showToast(`Thumbnail failed: ${err.message}`, 'error');
+      showToast(`Optimize failed: ${err.message}`, 'error');
       btn.disabled = false;
-      btn.textContent = 'Generate thumbnail';
+      btn.textContent = 'Optimize';
     }
   }
 
@@ -816,8 +897,8 @@
     document.getElementById('modelsContainer').addEventListener('click', (e) => {
       const b = e.target.closest('[data-delete-model]');
       if (b) deleteModel(b.dataset.deleteModel);
-      const t = e.target.closest('[data-thumb-model]');
-      if (t) generateThumb(t.dataset.thumbModel, t);
+      const o = e.target.closest('[data-optimize-model]');
+      if (o) optimizeExisting(o.dataset.optimizeModel, o);
     });
 
     // Theme events
