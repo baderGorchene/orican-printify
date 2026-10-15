@@ -7,10 +7,14 @@ Printify call goes through these Vercel functions and the token stays in Vercel.
 
 | Endpoint | Who calls it | What it does |
 | --- | --- | --- |
+| `GET /` or `/admin` | you (browser) | **Operations Command Center**: Bold black-and-white admin dashboard for live pipeline monitoring, order simulations, blanks & mockup explorer, and theme patching. |
 | `GET /api/catalog` | you (`x-admin-key`) | Read-only: Printify shops + EU providers for candidate blanks. |
 | `POST /api/setup` | you (`x-admin-key`) | Creates/reuses one unpublished draft per blank in Printify shop 7881083; returns variant mapping, costs, mockups. `GET` = report only. |
 | `POST /api/upload` | storefront | Issues a Vercel Blob client-upload token for the design PNG (PNG only, max 40 MB, `designs/`). |
 | `POST /api/shopify-order` | Shopify webhook | On "Order payment", sends ORICAN line items (SKU `PFY-…` + `_design_url` property) to Printify. Orders wait for your approval in Printify unless `AUTO_PRODUCTION=true`. |
+| `GET /api/status` | you (`x-admin-key`) | Real-time environment checklist and recent webhook fulfillment runs. |
+| `POST /api/test-order` | you (`x-admin-key`) | Simulates full order pipeline with placeholder design in Paris. |
+| `POST /api/theme-build` | you (`x-admin-key`) | Validates and compiles patched Shopify Liquid layout into Vercel Blob. |
 
 ## Environment variables
 

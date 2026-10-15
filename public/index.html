@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ORICAN // Ops Command Center</title>
+  <meta name="description" content="Professional Operations Command Center for ORICAN Printify & Shopify Customizer backend." />
+  <link rel="icon" type="image/png" href="/orican-placeholder.png" />
+  <link rel="stylesheet" href="/admin.css" />
+</head>
+<body>
+
+  <!-- Top Navigation Header -->
+  <header class="app-header">
+    <div class="header-inner">
+      <div class="brand-section">
+        <a href="/admin" class="brand-logo" id="brandLogo">
+          <div class="brand-mark">O</div>
+          <span>ORICAN</span>
+        </a>
+        <span class="brand-badge">OPS CONSOLE</span>
+      </div>
+
+      <nav class="nav-tabs" role="tablist">
+        <button class="tab-btn active" data-tab="status" role="tab" id="tabBtnStatus">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+          </svg>
+          <span>System Status</span>
+        </button>
+        <button class="tab-btn" data-tab="orders" role="tab" id="tabBtnOrders">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <circle cx="9" cy="21" r="1"></circle>
+            <circle cx="20" cy="21" r="1"></circle>
+            <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path>
+          </svg>
+          <span>Test Orders</span>
+        </button>
+        <button class="tab-btn" data-tab="blanks" role="tab" id="tabBtnBlanks">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <rect x="3" y="3" width="7" height="7"></rect>
+            <rect x="14" y="3" width="7" height="7"></rect>
+            <rect x="14" y="14" width="7" height="7"></rect>
+            <rect x="3" y="14" width="7" height="7"></rect>
+          </svg>
+          <span>Blanks & Catalog</span>
+        </button>
+        <button class="tab-btn" data-tab="theme" role="tab" id="tabBtnTheme">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <polyline points="16 18 22 12 16 6"></polyline>
+            <polyline points="8 6 2 12 8 18"></polyline>
+          </svg>
+          <span>Theme Patcher</span>
+        </button>
+      </nav>
+
+      <div class="header-actions">
+        <div class="live-pill" title="Live Printify & Shopify Pipeline Active">
+          <span class="live-dot"></span>
+          <span>PIPELINE LIVE</span>
+        </div>
+        <button class="action-btn" id="themeToggle" title="Toggle light/dark contrast" aria-label="Toggle theme">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="5"></circle>
+            <line x1="12" y1="1" x2="12" y2="3"></line>
+            <line x1="12" y1="21" x2="12" y2="23"></line>
+            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+            <line x1="1" y1="12" x2="3" y2="12"></line>
+            <line x1="21" y1="12" x2="23" y2="12"></line>
+            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+          </svg>
+        </button>
+        <button class="action-btn btn-lock" id="lockBtn" title="Manage Admin Key">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+            <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+          </svg>
+          <span>KEY</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Application Body -->
+  <main class="app-main">
+
+    <!-- TAB 1: System Status & Webhook Activity -->
+    <section class="tab-pane active" id="tab-status" role="tabpanel">
+      <div class="section-header">
+        <div class="section-title-wrap">
+          <h1>System Status & Webhooks</h1>
+          <p>Real-time environment variables, Vercel Blob read/write diagnostics, and order fulfillment webhook history.</p>
+        </div>
+        <div class="section-controls">
+          <label style="display:flex; align-items:center; gap:8px; font-size:0.78rem; font-family:var(--font-mono); color:var(--text-secondary); cursor:pointer;">
+            <input type="checkbox" id="autoRefreshToggle" style="accent-color:var(--text-primary);" />
+            <span>Auto-Refresh (25s)</span>
+          </label>
+          <button class="btn btn-secondary" id="runDiagBtn">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+              <polyline points="14 2 14 8 20 8"></polyline>
+              <line x1="16" y1="13" x2="8" y2="13"></line>
+              <line x1="16" y1="17" x2="8" y2="17"></line>
+              <polyline points="10 9 9 9 8 9"></polyline>
+            </svg>
+            <span>Run Blob Diagnostic</span>
+          </button>
+          <button class="btn btn-primary" id="refreshStatusBtn">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="23 4 23 10 17 10"></polyline>
+              <polyline points="1 20 1 14 7 14"></polyline>
+              <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+            </svg>
+            <span>Refresh</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Environment checklist -->
+      <div class="env-grid" id="envContainer">
+        <!-- Rendered dynamically -->
+        <div class="env-card"><div class="env-info"><span class="env-name">Loading infrastructure state…</span></div></div>
+      </div>
+
+      <!-- Webhook Execution Runs Table -->
+      <div class="panel-card">
+        <div class="panel-header">
+          <h2>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+              <polyline points="14 2 14 8 20 8"></polyline>
+            </svg>
+            <span>Recent Webhook Order Runs</span>
+          </h2>
+          <span style="font-family:var(--font-mono); font-size:0.75rem; color:var(--text-muted);">
+            Last checked: <span id="lastRefreshedAt">--:--:--</span>
+          </span>
+        </div>
+        <div class="table-responsive">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Timestamp</th>
+                <th>Shopify Order</th>
+                <th>Fulfillment Status</th>
+                <th>ORICAN Items</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="runsTableBody">
+              <tr>
+                <td colspan="5" style="text-align:center; padding: 28px; color: var(--text-muted);">
+                  Querying recent runs from Vercel Blob storage…
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 2: Orders & Pipeline Simulation -->
+    <section class="tab-pane" id="tab-orders" role="tabpanel">
+      <div class="section-header">
+        <div class="section-title-wrap">
+          <h1>Order Pipeline & Simulation</h1>
+          <p>Run simulated paid order fulfillment in Paris, inspect raw Printify payloads, and manage test orders.</p>
+        </div>
+      </div>
+
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap: 24px;">
+        <!-- Test Order Trigger Card -->
+        <div class="panel-card">
+          <div class="panel-header">
+            <h2>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polygon points="5 3 19 12 5 21 5 3"></polygon>
+              </svg>
+              <span>Simulate Customer Order</span>
+            </h2>
+          </div>
+          <div class="panel-body">
+            <p style="font-size:0.84rem; color:var(--text-secondary); margin-bottom:18px;">
+              Executes the real Shopify-to-Printify order pipeline for a simulated order (<strong>Heavy Crew Tee, White L</strong>, Paris delivery address, placeholder design URL). Auto-cancels in Printify unless preserved.
+            </p>
+
+            <div class="form-group">
+              <label style="display:flex; align-items:center; gap:8px; font-size:0.82rem; cursor:pointer;">
+                <input type="checkbox" id="keepTestOrderCheck" style="accent-color:var(--text-primary);" />
+                <span>Keep order in Printify (Do not auto-cancel)</span>
+              </label>
+              <p class="form-hint">Note: Orders are never sent to production during test simulation.</p>
+            </div>
+
+            <button class="btn btn-primary" id="runTestOrderBtn" style="width:100%; justify-content:center;">
+              Trigger Test Order
+            </button>
+
+            <div id="testOrderResultBox" style="display:none; margin-top:20px;">
+              <span class="stat-label" style="display:block; margin-bottom:8px;">Printify Order Response</span>
+              <pre class="code-box" id="testOrderResultCode"></pre>
+            </div>
+          </div>
+        </div>
+
+        <!-- Cancel Existing Test Order Card -->
+        <div class="panel-card">
+          <div class="panel-header">
+            <h2>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="15" y1="9" x2="9" y2="15"></line>
+                <line x1="9" y1="9" x2="15" y2="15"></line>
+              </svg>
+              <span>Cancel Test Order</span>
+            </h2>
+          </div>
+          <div class="panel-body">
+            <p style="font-size:0.84rem; color:var(--text-secondary); margin-bottom:18px;">
+              Printify only allows cancelling test orders once they have transitioned out of the initial "pending" status. Enter the 24-character hex ID to cancel:
+            </p>
+
+            <div class="form-group">
+              <label class="form-label" for="cancelTestOrderId">Printify Order ID</label>
+              <input type="text" class="form-input" id="cancelTestOrderId" placeholder="e.g. 6ac91b5a55a9ebcaa50b9e4f" />
+            </div>
+
+            <button class="btn btn-danger" id="cancelTestOrderBtn" style="width:100%; justify-content:center;">
+              Cancel Order in Printify
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 3: Blanks & Catalog Explorer -->
+    <section class="tab-pane" id="tab-blanks" role="tabpanel">
+      <div class="section-header">
+        <div class="section-title-wrap">
+          <h1>Blanks & Printify Catalog</h1>
+          <p>The 3 standard ORICAN tee blanks produced by <strong>OPT OnDemand (Czechia, Provider 30)</strong> in Shop 7881083.</p>
+        </div>
+        <div class="section-controls">
+          <label style="display:flex; align-items:center; gap:8px; font-size:0.78rem; font-family:var(--font-mono); color:var(--text-secondary); cursor:pointer;">
+            <input type="checkbox" id="syncBlankModeCheck" style="accent-color:var(--text-primary);" />
+            <span>Blank Mode (?blank=1)</span>
+          </label>
+          <button class="btn btn-outline" id="browseCatalogBtn">
+            Explore EU Providers
+          </button>
+          <button class="btn btn-primary" id="syncTemplatesBtn">
+            Sync Templates in Printify
+          </button>
+          <button class="btn btn-secondary" id="refreshBlanksBtn">
+            Refresh
+          </button>
+        </div>
+      </div>
+
+      <!-- Blank Cards Container -->
+      <div class="blanks-grid" id="blanksContainer">
+        <div style="grid-column: 1 / -1; text-align:center; padding: 48px; color:var(--text-muted);">
+          Loading blank templates and color mockups from Printify…
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 4: Theme Patcher -->
+    <section class="tab-pane" id="tab-theme" role="tabpanel">
+      <div class="section-header">
+        <div class="section-title-wrap">
+          <h1>Theme Builder & Liquid Patcher</h1>
+          <p>Injects the 3D tee customizer, full print area ratios (4200/4800 at 2048px), and cart preview proof hooks into Shopify theme files.</p>
+        </div>
+      </div>
+
+      <div class="panel-card" style="max-width: 840px;">
+        <div class="panel-header">
+          <h2>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="16 18 22 12 16 6"></polyline>
+              <polyline points="8 6 2 12 8 18"></polyline>
+            </svg>
+            <span>Build & Upload Patched Theme File</span>
+          </h2>
+        </div>
+        <div class="panel-body">
+          <p style="font-size:0.84rem; color:var(--text-secondary); margin-bottom:20px;">
+            Fetches an unpatched (or earlier patched) Liquid file from a Shopify CDN URL, verifies that AST patches match cleanly, validates the JavaScript syntax with <span class="mono-pill">new Function()</span>, and uploads an uncompressed artifact to Vercel Blob for Shopify's <span class="mono-pill">themeFilesUpsert</span>.
+          </p>
+
+          <div class="form-group">
+            <label class="form-label" for="themeSrcUrl">Shopify CDN Source URL</label>
+            <input type="url" class="form-input" id="themeSrcUrl" placeholder="https://cdn.shopify.com/.../layout/orican.liquid" />
+            <p class="form-hint">Must originate from a Shopify CDN URL (e.g., myshopify.com/cdn/ or wearorican.com/cdn/).</p>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="themeModeSelect">Target Patch Mode</label>
+            <select class="form-input" id="themeModeSelect" style="cursor:pointer;">
+              <option value="default">Standard Layout (layout/orican.liquid)</option>
+              <option value="cart">Cart Proof Preview (snippets/cart-products.liquid)</option>
+              <option value="original">Original Diagnostic (Upload without patching)</option>
+            </select>
+          </div>
+
+          <button class="btn btn-primary" id="buildThemeBtn">
+            Build & Deploy to Blob
+          </button>
+
+          <!-- Result Box -->
+          <div id="themeBuildResultBox" style="display:none; margin-top:28px; padding-top:24px; border-top:1px solid var(--border-subtle);">
+            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px;">
+              <span class="badge badge-success">Build Successful</span>
+              <span style="font-family:var(--font-mono); font-size:0.75rem; color:var(--text-muted);">
+                SHA: <strong id="themeBuildSha" style="color:var(--text-primary);">--</strong>
+              </span>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Blob Output URL (Direct Import for Shopify)</label>
+              <div style="display:flex; gap:8px;">
+                <input type="text" class="form-input" id="themeBuildUrl" readonly />
+                <button class="btn btn-secondary" id="copyThemeUrlBtn">Copy</button>
+              </div>
+            </div>
+
+            <span class="stat-label" style="display:block; margin: 16px 0 8px;">Verification Checks & Previews</span>
+            <pre class="code-box" id="themeBuildDetails"></pre>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Auth Key Gate Modal -->
+  <div class="modal-overlay" id="authModal">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 class="modal-title">ORICAN Security Access</h3>
+      </div>
+      <form id="authForm">
+        <div class="modal-body">
+          <p style="font-size:0.86rem; color:var(--text-secondary); margin-bottom:20px;">
+            Provide your <strong>ADMIN_KEY</strong> to unlock the operations command center. The key will be stored securely in your browser's local storage and attached to all API requests.
+          </p>
+
+          <div class="form-group">
+            <label class="form-label" for="authKeyInput">Admin Secret Key</label>
+            <input type="password" class="form-input" id="authKeyInput" placeholder="Enter ADMIN_KEY…" required autocomplete="current-password" />
+            <div id="authError" style="display:none; color:var(--accent-rose); font-size:0.78rem; margin-top:8px;"></div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="submit" class="btn btn-primary">
+            Authenticate & Unlock
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- JSON Inspector Modal -->
+  <div class="modal-overlay" id="jsonModal">
+    <div class="modal-card" style="max-width: 780px;">
+      <div class="modal-header">
+        <h3 class="modal-title" id="jsonModalTitle">Raw Payload Details</h3>
+        <button class="action-btn" id="closeJsonModal" aria-label="Close modal">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+      <div class="modal-body">
+        <pre class="code-box" id="jsonModalCode" style="max-height: 520px;"></pre>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" id="copyJsonBtn">Copy JSON</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification Container -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <!-- Application Script -->
+  <script src="/admin.js"></script>
+</body>
+</html>
