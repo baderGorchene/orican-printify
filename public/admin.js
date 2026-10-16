@@ -732,69 +732,71 @@
 
   function renderBlanks(data) {
     const blanks = data.blanks || [];
-    el.blanksContainer.innerHTML = blanks.map((b, bIdx) => {
+    const money = (c) => `$${(c / 100).toFixed(2)}`;
+    el.blanksContainer.innerHTML = blanks.length ? blanks.map((b, bIdx) => {
+      if (b.missing) {
+        return `
+        <div class="blank-card">
+          <div class="blank-empty">No Printify draft yet</div>
+          <div class="blank-body">
+            <div class="blank-title"><h3>${b.name}</h3></div>
+            <p class="muted">${b.matching_variants} matching variants at this provider. Sync templates to create the draft.</p>
+          </div>
+        </div>`;
+      }
+      const variants = b.variants || [];
+      const mockups = b.mockups || {};
+      // A configured color is only real if Printify enabled variants for it; the rest are shown struck out.
+      const sizesOf = (c) => variants.filter(v => v.color === c).map(v => v.size);
       const colors = Object.keys(b.colors || {});
-      const firstColor = colors[0] || '';
-      const initialMockup = (b.mockups && b.mockups[firstColor]) || '/orican-placeholder.png';
-
-      // Calculate cost range
-      const costs = (b.variants || []).map(v => v.cost_cents).filter(Boolean);
-      const minCost = costs.length ? (Math.min(...costs) / 100).toFixed(2) : '14.00';
-      const maxCost = costs.length ? (Math.max(...costs) / 100).toFixed(2) : '15.00';
-      const costRange = minCost === maxCost ? `$${minCost}` : `$${minCost} - $${maxCost}`;
+      const first = colors.find(c => mockups[c]) || colors.find(c => sizesOf(c).length) || colors[0] || '';
+      const costs = variants.map(v => v.cost_cents).filter(Boolean);
+      const cost = costs.length
+        ? (Math.min(...costs) === Math.max(...costs) ? money(costs[0]) : `${money(Math.min(...costs))} - ${money(Math.max(...costs))}`)
+        : '—';
 
       return `
-        <div class="blank-card">
-          <img id="mockup-${bIdx}" src="${initialMockup}" alt="${b.name}" />
+        <div class="blank-card" data-blank-idx="${bIdx}">
+          <div class="blank-shot">
+            <img src="${mockups[first] || '/orican-placeholder.png'}" alt="${b.name}, ${first}" />
+            <span class="tag warn blank-nomock" ${mockups[first] ? 'hidden' : ''}>No mockup for this color</span>
+          </div>
           <div class="blank-body">
             <div class="blank-title"><h3>${b.name}</h3><small>Blueprint ${b.blueprint_id}</small></div>
             <div class="swatches">
-              ${colors.map((cName, cIdx) => `<button class="swatch ${cIdx === 0 ? 'active' : ''}" style="background-color:${b.colors[cName]};" title="${cName}" aria-label="${cName}" data-blank-idx="${bIdx}" data-color="${cName}" data-mockup="${(b.mockups && b.mockups[cName]) || ''}"></button>`).join('')}
+              ${colors.map(c => {
+                const off = !sizesOf(c).length;
+                return `<button class="swatch${c === first ? ' active' : ''}${off ? ' off' : ''}" style="background-color:${b.colors[c]};" title="${c}${off ? ' (not offered by this provider)' : ''}" aria-label="${c}" data-color="${c}"></button>`;
+              }).join('')}
             </div>
-            <div class="sizes"><span id="selected-color-name-${bIdx}">${firstColor}</span> · ${(b.sizes || []).join(' ')}</div>
+            <div class="sizes"><b class="blank-color">${first}</b> · <span class="blank-sizes">${sizesOf(first).join(' ') || 'not offered'}</span></div>
             <div class="blank-foot">
-              <span>Cost <b>${costRange}</b></span>
-              <button class="btn btn-sm view-variants-btn" data-blank-idx="${bIdx}">Variants (${(b.variants || []).length})</button>
+              <span>Cost <b>${cost}</b></span>
+              <button class="btn btn-sm view-variants-btn">Variants (${variants.length})</button>
             </div>
           </div>
-        </div>
-      `;
-    }).join('');
+        </div>`;
+    }).join('') : '<p class="empty">No blanks configured.</p>';
 
-    // Attach Color Swatch click handlers
-    document.querySelectorAll('.swatch').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const bIdx = btn.dataset.blankIdx;
-        const colorName = btn.dataset.color;
-        const mockupUrl = btn.dataset.mockup;
-
-        // Update active class
-        const parentCard = btn.closest('.blank-card');
-        parentCard.querySelectorAll('.swatch').forEach(s => s.classList.remove('active'));
-        btn.classList.add('active');
-
-        // Update color label
-        const label = document.getElementById(`selected-color-name-${bIdx}`);
-        if (label) label.textContent = colorName;
-
-        // Update mockup image
-        const img = document.getElementById(`mockup-${bIdx}`);
-        if (img && mockupUrl) {
-          img.style.opacity = '0.3';
-          img.src = mockupUrl;
-          img.onload = () => { img.style.opacity = '1'; };
-        }
-      });
-    });
-
-    // Attach View Variants modal buttons
-    document.querySelectorAll('.view-variants-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const bIdx = btn.dataset.blankIdx;
-        const blank = blanks[bIdx];
-        openJsonModal(`Variant Matrix: ${blank.name}`, blank.variants || []);
-      });
-    });
+    el.blanksContainer.onclick = (e) => {
+      const card = e.target.closest('.blank-card[data-blank-idx]');
+      if (!card) return;
+      const b = blanks[card.dataset.blankIdx];
+      if (e.target.closest('.view-variants-btn')) return openJsonModal(`Variant Matrix: ${b.name}`, b.variants || []);
+      const sw = e.target.closest('.swatch');
+      if (!sw) return;
+      const c = sw.dataset.color;
+      const src = (b.mockups || {})[c];
+      card.querySelectorAll('.swatch').forEach(s => s.classList.toggle('active', s === sw));
+      card.querySelector('.blank-color').textContent = c;
+      card.querySelector('.blank-sizes').textContent = (b.variants || []).filter(v => v.color === c).map(v => v.size).join(' ') || 'not offered';
+      card.querySelector('.blank-nomock').hidden = !!src;
+      const img = card.querySelector('img');
+      img.alt = `${b.name}, ${c}`;
+      img.style.opacity = '0.3';
+      img.onload = () => { img.style.opacity = '1'; };
+      img.src = src || '/orican-placeholder.png';
+    };
   }
 
   async function syncTemplates() {

@@ -41,14 +41,18 @@ function report(blank, product, catalogVariants) {
         sku: v.sku,
       };
     });
+  // One front mockup per color: Printify's default image wins over the first one listed.
   const mockups = {};
+  const fromDefault = {};
   for (const img of product.images || []) {
     if (img.position !== "front") continue;
     for (const vid of img.variant_ids) {
       const cv = byId.get(vid);
       if (!cv) continue;
       const color = cv.options.color;
-      if (blank.colors[color] && !mockups[color]) mockups[color] = img.src;
+      if (!blank.colors[color] || fromDefault[color]) continue;
+      if (img.is_default || !mockups[color]) mockups[color] = img.src;
+      if (img.is_default) fromDefault[color] = true;
     }
   }
   return {
