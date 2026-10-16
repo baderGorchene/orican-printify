@@ -972,10 +972,9 @@
         closeModals();
       } else if (e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA') {
         if (e.key === '1') switchTab('models');
-        if (e.key === '2') switchTab('packs');
-        if (e.key === '3') switchTab('orders');
-        if (e.key === '4') switchTab('blanks');
-        if (e.key === '5') switchTab('theme');
+        if (e.key === '2') switchTab('orders');
+        if (e.key === '3') switchTab('blanks');
+        if (e.key === '4') switchTab('theme');
         if (e.key.toLowerCase() === 'l') showAuthModal();
         if (e.key.toLowerCase() === 'r') {
           if (state.activeTab === 'models') loadModels();

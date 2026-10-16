@@ -13,7 +13,6 @@
     <span class="brand">ORICAN <span>Admin</span></span>
     <nav class="tabs" role="tablist">
       <button class="tab-btn active" data-tab="models" role="tab">Models</button>
-      <button class="tab-btn" data-tab="packs" role="tab">Packs</button>
       <button class="tab-btn" data-tab="orders" role="tab">Orders</button>
       <button class="tab-btn" data-tab="blanks" role="tab">Blanks</button>
       <button class="tab-btn" data-tab="theme" role="tab">Theme</button>
@@ -67,19 +66,19 @@
         <p class="hint">Uploading a name that already exists replaces that model.</p>
       </form>
 
-      <div class="model-grid" id="modelsContainer"></div>
-    </section>
-
-    <!-- Packs: themed picker sections for events -->
-    <section class="tab-pane" id="tab-packs" role="tabpanel">
-      <div class="page-head">
+      <div class="section-head">
         <div>
-          <h1>Packs</h1>
-          <p class="muted">A pack is a themed section at the top of the design picker, e.g. Halloween, shown only between its dates. Each model still follows its own schedule.</p>
+          <h2>Packs</h2>
+          <p class="muted">Themed sections at the top of the design picker, e.g. Halloween, shown only between their dates. Each model still follows its own schedule.</p>
         </div>
         <button class="btn btn-primary" id="newPackBtn">New pack</button>
       </div>
       <div class="pack-list" id="packsContainer"></div>
+
+      <div class="section-head">
+        <h2>Models</h2>
+      </div>
+      <div class="model-grid" id="modelsContainer"></div>
     </section>
 
     <!-- Orders: pipeline health, webhook runs, test orders -->
