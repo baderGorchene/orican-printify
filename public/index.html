@@ -5,22 +5,26 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>ORICAN Admin</title>
   <link rel="icon" type="image/png" href="/orican-placeholder.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700;800&display=swap" />
   <link rel="stylesheet" href="/admin.css" />
 </head>
 <body>
 
-  <header class="topbar">
-    <span class="brand">ORICAN <span>Admin</span></span>
-    <nav class="tabs" role="tablist">
-      <button class="tab-btn active" data-tab="models" role="tab">Models</button>
-      <button class="tab-btn" data-tab="orders" role="tab">Orders</button>
-      <button class="tab-btn" data-tab="blanks" role="tab">Blanks</button>
-      <button class="tab-btn" data-tab="theme" role="tab">Theme</button>
+  <aside class="sidebar">
+    <div class="brand"><span class="brand-mark">O</span><span>ORICAN<small>Admin</small></span></div>
+    <nav class="tabs" role="tablist" aria-label="Sections">
+      <button class="tab-btn active" data-tab="models" role="tab"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><path d="m3.3 7 8.7 5 8.7-5M12 22V12"></path></svg><span>Models</span><kbd>1</kbd></button>
+      <button class="tab-btn" data-tab="orders" role="tab"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path><path d="M3 6h18M16 10a4 4 0 0 1-8 0"></path></svg><span>Orders</span><kbd>2</kbd></button>
+      <button class="tab-btn" data-tab="blanks" role="tab"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.38 3.46 16 2a4 4 0 0 1-8 0L3.62 3.46a2 2 0 0 0-1.34 2.23l.58 3.47a1 1 0 0 0 .99.84H6v10c0 1.1.9 2 2 2h8a2 2 0 0 0 2-2V10h2.15a1 1 0 0 0 .99-.84l.58-3.47a2 2 0 0 0-1.34-2.23z"></path></svg><span>Blanks</span><kbd>3</kbd></button>
+      <button class="tab-btn" data-tab="theme" role="tab"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m16 18 6-6-6-6M8 6l-6 6 6 6"></path></svg><span>Theme</span><kbd>4</kbd></button>
     </nav>
-    <button class="icon-btn" id="lockBtn" title="Change admin key" aria-label="Change admin key">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
-    </button>
-  </header>
+    <div class="sidebar-foot">
+      <button class="side-btn" id="lockBtn" title="Change admin key" aria-label="Change admin key"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg><span>Admin key</span><kbd>L</kbd></button>
+      <p class="side-hint"><kbd>R</kbd> refresh</p>
+    </div>
+  </aside>
 
   <main class="page">
 
@@ -34,46 +38,54 @@
         <button class="btn" id="refreshModelsBtn">Refresh</button>
       </div>
 
-      <form class="panel upload" id="modelForm">
-        <div class="upload-row">
-          <label class="field">
-            <span>Name</span>
-            <input type="text" id="modelName" placeholder="e.g. Skull" required maxlength="60" />
-          </label>
-          <label class="field">
-            <span>Model file (.glb, .obj, .fbx)</span>
-            <input type="file" id="modelFile" accept=".glb,.obj,.fbx" required />
-          </label>
-          <button type="submit" class="btn btn-primary" id="uploadModelBtn">Upload model</button>
-        </div>
-        <details class="more">
-          <summary>More options</summary>
+      <div class="bento">
+        <form class="tile tile-upload" id="modelForm">
+          <h2>Upload a model</h2>
           <div class="upload-row">
             <label class="field">
-              <span>Material (.mtl, for .obj)</span>
-              <input type="file" id="modelMtl" accept=".mtl" />
+              <span>Name</span>
+              <input type="text" id="modelName" placeholder="e.g. Skull" required maxlength="60" />
             </label>
             <label class="field">
-              <span>Texture image</span>
-              <input type="file" id="modelTexture" accept="image/png,image/jpeg,image/webp" />
+              <span>Model file (.glb, .obj, .fbx)</span>
+              <input type="file" id="modelFile" accept=".glb,.obj,.fbx" required />
             </label>
-            <label class="field">
-              <span>Still thumbnail (only if the preview can't render)</span>
-              <input type="file" id="modelThumb" accept="image/png,image/jpeg,image/webp" />
-            </label>
+            <button type="submit" class="btn btn-primary" id="uploadModelBtn">Upload model</button>
           </div>
-        </details>
-        <p class="hint">Uploading a name that already exists replaces that model.</p>
-      </form>
-
-      <div class="section-head">
-        <div>
-          <h2>Packs</h2>
-          <p class="muted">Themed sections at the top of the design picker, e.g. Halloween, shown only between their dates. Each model still follows its own schedule.</p>
+          <details class="more">
+            <summary>More options</summary>
+            <div class="upload-row">
+              <label class="field">
+                <span>Material (.mtl, for .obj)</span>
+                <input type="file" id="modelMtl" accept=".mtl" />
+              </label>
+              <label class="field">
+                <span>Texture image</span>
+                <input type="file" id="modelTexture" accept="image/png,image/jpeg,image/webp" />
+              </label>
+              <label class="field">
+                <span>Still thumbnail (only if the preview can't render)</span>
+                <input type="file" id="modelThumb" accept="image/png,image/jpeg,image/webp" />
+              </label>
+            </div>
+          </details>
+          <p class="hint">Uploading a name that already exists replaces that model.</p>
+        </form>
+        <div class="tile stat"><span class="stat-label">Models</span><b id="statModels">—</b><small id="statModelsSub"></small></div>
+        <div class="tile stat"><span class="stat-label">Packs</span><b id="statPacks">—</b><small id="statPacksSub"></small></div>
+        <div class="tile stat"><span class="stat-label">Need optimizing</span><b id="statOptimize">—</b><small id="statOptimizeSub"></small></div>
+        <div class="tile stat"><span class="stat-label">Catalogue size</span><b id="statSize">—</b><small id="statSizeSub"></small></div>
+        <div class="tile tile-wide">
+          <div class="section-head">
+            <div>
+              <h2>Packs</h2>
+              <p class="muted">Themed sections at the top of the design picker, e.g. Halloween, shown only between their dates. Each model still follows its own schedule.</p>
+            </div>
+            <button class="btn btn-primary" id="newPackBtn">New pack</button>
+          </div>
+          <div class="pack-list" id="packsContainer"></div>
         </div>
-        <button class="btn btn-primary" id="newPackBtn">New pack</button>
       </div>
-      <div class="pack-list" id="packsContainer"></div>
 
       <div class="section-head">
         <h2>Models</h2>

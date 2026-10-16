@@ -302,6 +302,7 @@
       state.modelsData = data.models;
       state.packs = data.packs || [];
       renderPacks();
+      renderModelStats();
       box.innerHTML = state.modelsData.length ? state.modelsData.map(m => {
         // The spin strip plays on hover (CSS); models without one show their still thumbnail.
         const preview = m.spin
@@ -335,6 +336,22 @@
     } catch (err) {
       showToast(`Failed to load models: ${err.message}`, 'error');
     }
+  }
+
+  function renderModelStats() {
+    const models = state.modelsData || [];
+    const now = Date.now();
+    const live = (x) => (!x.from || Date.parse(x.from) <= now) && (!x.until || Date.parse(x.until) > now);
+    const set = (id, value, sub) => {
+      document.getElementById(id).textContent = value;
+      document.getElementById(`${id}Sub`).textContent = sub;
+    };
+    const todo = models.filter(m => !m.spin).length;
+    set('statModels', models.length, `${models.filter(live).length} visible now`);
+    set('statPacks', state.packs.length, `${state.packs.filter(live).length} live now`);
+    set('statOptimize', todo, todo ? 'No 360° preview yet' : 'All optimized');
+    set('statSize', fmtSize(models.reduce((n, m) => n + (m.size || 0), 0)), `${models.filter(m => m.size > MODEL_WARN_BYTES).length} over ${MODEL_WARN_BYTES / 1048576} MB`);
+    document.getElementById('statOptimize').closest('.tile').classList.toggle('alert', todo > 0);
   }
 
   // Same three.js release (r128) and loaders as the storefront customizer.
