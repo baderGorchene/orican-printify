@@ -422,43 +422,54 @@
     return obj;
   }
 
+  // GLTFExporter (r128) only writes Float32/Uint32/Uint16/Uint8 plain attributes. Quantized
+  // (KHR_mesh_quantization / meshopt: Int8, Int16, normalized) and interleaved attributes make it
+  // throw "Unsupported bufferAttribute component type", so unpack them to Float32 first.
+  // r128's getX() returns raw stored values (no denormalize), so normalized ints are scaled by hand.
+  const NORM = new Map([[Int8Array, 127], [Uint8Array, 255], [Int16Array, 32767], [Uint16Array, 65535], [Int32Array, 2147483647], [Uint32Array, 4294967295]]);
+  function toFloatAttribute(attr) {
+    const { count, itemSize } = attr;
+    const raw = attr.isInterleavedBufferAttribute ? attr.data.array : attr.array;
+    const stride = attr.isInterleavedBufferAttribute ? attr.data.stride : itemSize;
+    const offset = attr.isInterleavedBufferAttribute ? attr.offset : 0;
+    const max = attr.normalized ? NORM.get(raw.constructor) : 0;
+    const out = new Float32Array(count * itemSize);
+    for (let i = 0; i < count; i++) {
+      for (let j = 0; j < itemSize; j++) {
+        const v = raw[i * stride + offset + j];
+        out[i * itemSize + j] = max ? Math.max(v / max, -1) : v;
+      }
+    }
+    return new THREE.BufferAttribute(out, itemSize, false);
+  }
+  const exportable = (attr) => !attr.isInterleavedBufferAttribute && attr.array instanceof Float32Array;
+
+  function sanitizeForExport(obj) {
+    obj.traverse((node) => {
+      const geom = node.geometry;
+      if (!geom || !geom.attributes) return;
+      for (const [name, attr] of Object.entries(geom.attributes)) {
+        if (name === 'skinIndex') {
+          // JOINTS_0 must stay integer
+          if (attr.isInterleavedBufferAttribute || !(attr.array instanceof Uint16Array || attr.array instanceof Uint8Array)) {
+            geom.setAttribute(name, new THREE.BufferAttribute(Uint16Array.from(toFloatAttribute(attr).array), attr.itemSize));
+          }
+        } else if (!exportable(attr)) {
+          geom.setAttribute(name, toFloatAttribute(attr));
+        }
+      }
+      for (const [name, list] of Object.entries(geom.morphAttributes || {})) {
+        geom.morphAttributes[name] = list.map((a) => (exportable(a) ? a : toFloatAttribute(a)));
+      }
+      if (geom.index && !(geom.index.array instanceof Uint16Array || geom.index.array instanceof Uint32Array)) {
+        geom.setIndex(new THREE.BufferAttribute(Uint32Array.from(geom.index.array), 1));
+      }
+    });
+  }
+
   const exportGlb = (obj) => new Promise((ok, fail) => {
     try {
-      if (window.THREE && THREE.GLTFExporter && !THREE.GLTFExporter._patched) {
-        THREE.GLTFExporter._patched = true;
-        const origProcessAccessor = THREE.GLTFExporter.prototype.processAccessor;
-        THREE.GLTFExporter.prototype.processAccessor = function (attribute, geometry, start, count) {
-          if (attribute && attribute.array) {
-            const valid =
-              !attribute.isInterleavedBufferAttribute &&
-              (attribute.array.constructor === Float32Array ||
-               attribute.array.constructor === Uint32Array ||
-               attribute.array.constructor === Uint16Array ||
-               attribute.array.constructor === Uint8Array);
-
-            if (!valid) {
-              if (attribute.isInterleavedBufferAttribute) {
-                const itemSize = attribute.itemSize;
-                const totalCount = attribute.count;
-                const targetArray = new Float32Array(totalCount * itemSize);
-                for (let i = 0; i < totalCount; i++) {
-                  if (itemSize >= 1) targetArray[i * itemSize] = attribute.getX(i);
-                  if (itemSize >= 2) targetArray[i * itemSize + 1] = attribute.getY(i);
-                  if (itemSize >= 3) targetArray[i * itemSize + 2] = attribute.getZ(i);
-                  if (itemSize >= 4) targetArray[i * itemSize + 3] = attribute.getW(i);
-                }
-                attribute = new THREE.BufferAttribute(targetArray, itemSize, attribute.normalized);
-              } else {
-                const isIndex = geometry && geometry.index === attribute;
-                const targetArray = isIndex ? new Uint32Array(attribute.array) : new Float32Array(attribute.array);
-                attribute = new THREE.BufferAttribute(targetArray, attribute.itemSize, attribute.normalized);
-              }
-            }
-          }
-          return origProcessAccessor.call(this, attribute, geometry, start, count);
-        };
-      }
-
+      sanitizeForExport(obj);
       new THREE.GLTFExporter().parse(obj, ok, { binary: true, maxTextureSize: MAX_TEXTURE });
     } catch (err) { fail(err); }
   });
