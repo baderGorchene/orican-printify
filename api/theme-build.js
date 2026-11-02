@@ -1,11 +1,11 @@
 // POST /api/theme-build?src=<public URL of a copy of layout/orican.liquid>   (header x-admin-key)
 // Applies the ORICAN Printify wiring to the layout, verifies every edit matched exactly once and that
-// the main script still parses, stores the result publicly in Blob and returns its URL, so Shopify's
+// the main script still parses, stores the result publicly in R2 and returns its URL, so Shopify's
 // themeFilesUpsert can pull it by URL into an UNPUBLISHED theme. Nothing here touches the live theme.
 const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
-const { put } = require("@vercel/blob");
+const { uploadToR2 } = require("../lib/r2");
 const { isAdmin } = require("../lib/printify");
 
 const read = (f) => fs.readFileSync(path.join(process.cwd(), "theme", f), "utf8").trim();
@@ -20,12 +20,12 @@ const PRICE = '<div class="price" id="teePrice">$14.00</div>';
 const DATA_TAG = "{% endraw %}{% render 'orican-data' %}{% raw %}";
 
 // snippets/cart-products.liquid (cart page + cart drawer): show the customer's composited preview
-// (line item property _preview_url, a public Vercel Blob PNG) instead of the plain variant image.
+// (line item property _preview_url, a public PNG) instead of the plain variant image.
 const CART_IMG = "echo item.image | image_url: width: 250 | image_tag: class: 'cart-items__media-image border-style', style: border_override";
 const CART_NEW = [
   "assign orican_pv = item.properties['_preview_url'] | default: '' | escape",
   "assign orican_head = orican_pv | slice: 0, 8",
-  "if orican_head == 'https://' and orican_pv contains '.public.blob.vercel-storage.com/designs/'",
+  "if orican_head == 'https://' and (orican_pv contains '.public.blob.vercel-storage.com/designs/' or orican_pv contains 'r2.cloudflarestorage.com' or orican_pv contains '.r2.dev')",
   "  assign orican_alt = item.product.title | escape",
   "  echo '<img src=\"' | append: orican_pv | append: '\" class=\"cart-items__media-image border-style\" style=\"' | append: border_override | append: '\" alt=\"' | append: orican_alt | append: '\" loading=\"lazy\">'",
   "else",
@@ -164,11 +164,12 @@ module.exports = async (req, res) => {
       ? { out: src, counts: null, checks: { size: src.length }, previews: null }
       : mode === "cart" ? buildCart(src) : build(src);
     const sha = crypto.createHash("sha256").update(out).digest("hex").slice(0, 12);
-    const blob = await put(`theme/orican-${sha}.liquid`, out, {
-      access: "public", contentType: "text/plain; charset=utf-8", addRandomSuffix: true,
-    });
+    const key = `theme/orican-${sha}.liquid`;
+    await uploadToR2(key, out, "text/plain; charset=utf-8");
+    const publicBase = process.env.R2_PUBLIC_URL || `https://${process.env.R2_BUCKET_NAME}.${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`;
+    const url = `${publicBase}/${key}`;
     res.setHeader("Cache-Control", "no-store");
-    res.status(200).json({ url: blob.url, sha, counts, checks, previews });
+    res.status(200).json({ url, sha, counts, checks, previews });
   } catch (err) {
     res.status(422).json({ error: String(err.message || err) });
   }
