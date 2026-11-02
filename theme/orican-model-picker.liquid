@@ -171,60 +171,51 @@
   // to act as full 3D models when placed on the shirt customizer, updating frame angles on
   // horizontal rotations, dragging, and flipping while keeping the plane facing forward.
   var activeImpostor = null;
-  var lastCreatedMesh = null;
 
-  function hookThree() {
-    var T = window.THREE;
-    if (!T || T.__oricanImpostorHooked) return;
-    T.__oricanImpostorHooked = true;
-
-    var OrigMesh = T.Mesh;
-    T.Mesh = function (geom, mat) {
-      var mesh = new OrigMesh(geom, mat);
-      lastCreatedMesh = mesh;
-      return mesh;
-    };
-    T.Mesh.prototype = OrigMesh.prototype;
-
-    var OrigRenderer = T.WebGLRenderer;
-    if (OrigRenderer && OrigRenderer.prototype && !OrigRenderer.prototype.__oricanRenderHooked) {
-      OrigRenderer.prototype.__oricanRenderHooked = true;
-      var origRender = OrigRenderer.prototype.render;
-      OrigRenderer.prototype.render = function (scene, camera) {
-        if (activeImpostor && (activeImpostor.mesh || lastCreatedMesh)) {
-          activeImpostor.update(camera);
+  function findDesignMesh(scene) {
+    if (!scene || !scene.children) return null;
+    for (var i = 0; i < scene.children.length; i++) {
+      var child = scene.children[i];
+      if (child && child.children && child.children.length > 0) {
+        for (var j = 0; j < child.children.length; j++) {
+          var mesh = child.children[j];
+          if (mesh && mesh.isMesh && mesh.geometry && mesh.geometry.parameters && mesh.geometry.parameters.width === 1) {
+            return mesh;
+          }
         }
-        var res = origRender.apply(this, arguments);
-        if (activeImpostor && activeImpostor.mesh) {
-          activeImpostor.restore();
-        }
-        return res;
-      };
+      }
     }
+    return null;
   }
 
-  if (window.THREE) {
-    hookThree();
-  } else {
-    var _origThree = undefined;
-    try {
-      Object.defineProperty(window, "THREE", {
-        configurable: true,
-        enumerable: true,
-        get: function () { return _origThree; },
-        set: function (v) {
-          _origThree = v;
-          hookThree();
+  function hookRenderer() {
+    var T = window.THREE;
+    if (!T || !T.WebGLRenderer || !T.WebGLRenderer.prototype || T.WebGLRenderer.prototype.__oricanHooked) return;
+    T.WebGLRenderer.prototype.__oricanHooked = true;
+    var origRender = T.WebGLRenderer.prototype.render;
+    T.WebGLRenderer.prototype.render = function (scene, camera) {
+      if (activeImpostor && scene) {
+        var mesh = activeImpostor.mesh || findDesignMesh(scene);
+        if (mesh) {
+          activeImpostor.mesh = mesh;
+          activeImpostor.update(mesh, camera);
         }
-      });
-    } catch (e) {}
+      }
+      var res = origRender.apply(this, arguments);
+      if (activeImpostor && activeImpostor.mesh) {
+        activeImpostor.restore();
+      }
+      return res;
+    };
   }
+
+  setInterval(hookRenderer, 300);
 
   function place(m) {
     m = resolveModel(m);
     if (!m) return Promise.reject(new Error("Design not found"));
 
-    hookThree();
+    hookRenderer();
 
     // If the model has a real 3D geometry file (.glb, .fbx, .obj), place it via 3D loader
     if (m.model) {
@@ -285,7 +276,6 @@
           targetInput.files = dt.files;
           targetInput.dispatchEvent(new Event("change", { bubbles: true }));
 
-          var T = window.THREE;
           activeImpostor = {
             slug: m.slug,
             sheetImg: img,
@@ -298,15 +288,13 @@
             ctx: ctx,
             currentFrame: 0,
             mesh: null,
-            savedQuaternion: T ? new T.Quaternion() : null,
-            euler: T ? new T.Euler(0, 0, 0, "YXZ") : null,
-            tempEuler: T ? new T.Euler(0, 0, 0, "YXZ") : null,
-            update: function (camera) {
-              var mesh = this.mesh || lastCreatedMesh;
+            savedQuaternion: null,
+            euler: null,
+            tempEuler: null,
+            update: function (mesh, camera) {
               if (!mesh || !mesh.parent) return;
-              this.mesh = mesh;
               var T = window.THREE;
-              if (!T) return;
+              if (!T || !T.Quaternion || !T.Euler) return;
               if (!this.savedQuaternion) {
                 this.savedQuaternion = new T.Quaternion();
                 this.euler = new T.Euler(0, 0, 0, "YXZ");
@@ -349,11 +337,10 @@
               mesh.updateMatrixWorld(true);
             },
             restore: function () {
-              var mesh = this.mesh;
-              if (!mesh) return;
-              mesh.quaternion.copy(this.savedQuaternion);
-              mesh.updateMatrix();
-              mesh.updateMatrixWorld(true);
+              if (!this.mesh || !this.savedQuaternion) return;
+              this.mesh.quaternion.copy(this.savedQuaternion);
+              this.mesh.updateMatrix();
+              this.mesh.updateMatrixWorld(true);
             }
           };
 
