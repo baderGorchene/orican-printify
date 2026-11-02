@@ -422,48 +422,43 @@
     return obj;
   }
 
-  function sanitizeGeometryForExport(obj) {
-    obj.traverse((child) => {
-      if (child.isMesh && child.geometry) {
-        const geom = child.geometry;
-        for (const name in geom.attributes) {
-          const attr = geom.attributes[name];
-          if (!attr) continue;
-          const isSupported =
-            !attr.isInterleavedBufferAttribute &&
-            (attr.array instanceof Float32Array ||
-             attr.array instanceof Int8Array ||
-             attr.array instanceof Uint8Array ||
-             attr.array instanceof Uint8ClampedArray ||
-             attr.array instanceof Int16Array ||
-             attr.array instanceof Uint16Array ||
-             attr.array instanceof Uint32Array);
-
-          if (!isSupported) {
-            const itemSize = attr.itemSize;
-            const count = attr.count;
-            const newArray = new Float32Array(count * itemSize);
-            for (let i = 0; i < count; i++) {
-              if (itemSize >= 1) newArray[i * itemSize] = attr.getX(i);
-              if (itemSize >= 2) newArray[i * itemSize + 1] = attr.getY(i);
-              if (itemSize >= 3) newArray[i * itemSize + 2] = attr.getZ(i);
-              if (itemSize >= 4) newArray[i * itemSize + 3] = attr.getW(i);
-            }
-            geom.setAttribute(name, new THREE.BufferAttribute(newArray, itemSize, attr.normalized));
-          }
-        }
-        if (geom.index && geom.index.array) {
-          if (!(geom.index.array instanceof Uint16Array || geom.index.array instanceof Uint32Array)) {
-            geom.setIndex(new THREE.BufferAttribute(new Uint32Array(geom.index.array), 1));
-          }
-        }
-      }
-    });
-  }
-
   const exportGlb = (obj) => new Promise((ok, fail) => {
     try {
-      sanitizeGeometryForExport(obj);
+      if (window.THREE && THREE.GLTFExporter && !THREE.GLTFExporter._patched) {
+        THREE.GLTFExporter._patched = true;
+        const origProcessAccessor = THREE.GLTFExporter.prototype.processAccessor;
+        THREE.GLTFExporter.prototype.processAccessor = function (attribute, geometry, start, count) {
+          if (attribute && attribute.array) {
+            const valid =
+              !attribute.isInterleavedBufferAttribute &&
+              (attribute.array.constructor === Float32Array ||
+               attribute.array.constructor === Uint32Array ||
+               attribute.array.constructor === Uint16Array ||
+               attribute.array.constructor === Uint8Array);
+
+            if (!valid) {
+              if (attribute.isInterleavedBufferAttribute) {
+                const itemSize = attribute.itemSize;
+                const totalCount = attribute.count;
+                const targetArray = new Float32Array(totalCount * itemSize);
+                for (let i = 0; i < totalCount; i++) {
+                  if (itemSize >= 1) targetArray[i * itemSize] = attribute.getX(i);
+                  if (itemSize >= 2) targetArray[i * itemSize + 1] = attribute.getY(i);
+                  if (itemSize >= 3) targetArray[i * itemSize + 2] = attribute.getZ(i);
+                  if (itemSize >= 4) targetArray[i * itemSize + 3] = attribute.getW(i);
+                }
+                attribute = new THREE.BufferAttribute(targetArray, itemSize, attribute.normalized);
+              } else {
+                const isIndex = geometry && geometry.index === attribute;
+                const targetArray = isIndex ? new Uint32Array(attribute.array) : new Float32Array(attribute.array);
+                attribute = new THREE.BufferAttribute(targetArray, attribute.itemSize, attribute.normalized);
+              }
+            }
+          }
+          return origProcessAccessor.call(this, attribute, geometry, start, count);
+        };
+      }
+
       new THREE.GLTFExporter().parse(obj, ok, { binary: true, maxTextureSize: MAX_TEXTURE });
     } catch (err) { fail(err); }
   });
