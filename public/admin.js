@@ -492,14 +492,43 @@
     return parts;
   }
 
-  // Upload parts, then delete every older file of that model, so it is never missing mid-upload.
+  // Upload parts directly to Cloudflare R2 (presigned URL with server-side fallback)
   async function publishModel(slug, parts, keep, setStatus) {
-    const { upload } = await import('/orican-upload.js');
     const urls = [...keep];
     for (const [blob, name] of parts) {
       setStatus(`Uploading ${name} (${fmtSize(blob.size)})…`);
-      const r = await upload(`models/${slug}/${name}`, blob, { access: 'public', handleUploadUrl: '/api/models', clientPayload: state.key });
-      urls.push(r.url);
+      const key = `models/${slug}/${name}`;
+      const contentType = blob.type || (name.endsWith('.glb') ? 'model/gltf-binary' : name.endsWith('.webp') ? 'image/webp' : 'application/octet-stream');
+      let publicUrl;
+      try {
+        const presigned = await apiFetch('/api/models', {
+          method: 'POST',
+          body: { action: 'presign', key, contentType },
+        });
+        const uploadRes = await fetch(presigned.uploadUrl, {
+          method: 'PUT',
+          body: blob,
+          headers: { 'Content-Type': contentType },
+        });
+        if (!uploadRes.ok) throw new Error(`HTTP ${uploadRes.status}`);
+        publicUrl = presigned.publicUrl;
+      } catch (presignErr) {
+        // Fallback to server-side upload
+        const arrayBuf = await blob.arrayBuffer();
+        let binary = '';
+        const bytes = new Uint8Array(arrayBuf);
+        const len = bytes.byteLength;
+        for (let i = 0; i < len; i++) {
+          binary += String.fromCharCode(bytes[i]);
+        }
+        const base64 = btoa(binary);
+        const r = await apiFetch('/api/models', {
+          method: 'POST',
+          body: { action: 'upload', key, data: base64, contentType },
+        });
+        publicUrl = r.url || presigned?.publicUrl || key;
+      }
+      urls.push(publicUrl);
     }
     await apiFetch('/api/models', { method: 'POST', body: { action: 'prune', slug, keep: urls } });
   }

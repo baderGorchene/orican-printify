@@ -9,11 +9,11 @@
 //                                               (visible models only; size = model + mtl + texture bytes)
 //   GET ?view=shop                              public: { models, packs: [{ id, name, until, models: [slug] }] }
 //   GET ?view=all                               public: { models (all, with from/until), packs (all) } - dashboard
-//   POST (upload)                               admin: handles file uploads to R2
+//   POST { action: "presign", key }             admin (x-admin-key): generates presigned R2 upload URL
 //   POST { action: "delete", slug }             admin (x-admin-key): removes models/<slug>/ and its schedule/pack entries
 //   POST { action: "prune", slug, keep: [url] } admin (x-admin-key): removes every file in models/<slug>/ not in keep
 //   POST { action: "config", config }           admin (x-admin-key): replaces schedules and packs
-const { readJsonFromR2, uploadToR2, listFromR2, deleteFromR2 } = require("../lib/r2.js");
+const { readJsonFromR2, uploadToR2, listFromR2, deleteFromR2, getPresignedUploadUrl } = require("../lib/r2.js");
 const { isAdmin } = require("../lib/printify");
 
 const SLUG = /^[a-z0-9][a-z0-9-]{0,60}$/;
@@ -172,11 +172,25 @@ async function handler(req, res) {
     return res.status(200).json({ deleted: gone.length });
   }
 
+  if (body.action === "presign") {
+    if (!isAdmin(req)) return res.status(401).json({ error: "unauthorized" });
+    const { key, contentType } = body;
+    if (!key) return res.status(400).json({ error: "key required" });
+    try {
+      const presigned = await getPresignedUploadUrl(key, contentType);
+      return res.status(200).json(presigned);
+    } catch (err) {
+      return res.status(500).json({ error: String(err.message || err) });
+    }
+  }
+
   if (body.action === "upload") {
     if (!isAdmin(req)) return res.status(401).json({ error: "unauthorized" });
     const { key, data, contentType } = body;
-    await uploadToR2(key, data, contentType);
-    return res.status(200).json({ ok: true, key });
+    const buf = Buffer.isBuffer(data) ? data : Buffer.from(data, "base64");
+    await uploadToR2(key, buf, contentType);
+    const publicBase = process.env.R2_PUBLIC_URL || `https://${process.env.R2_BUCKET_NAME}.${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`;
+    return res.status(200).json({ ok: true, key, url: `${publicBase}/${key}` });
   }
 
   return res.status(200).json({ ok: true });
