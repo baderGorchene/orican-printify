@@ -422,8 +422,48 @@
     return obj;
   }
 
+  function sanitizeGeometryForExport(obj) {
+    obj.traverse((child) => {
+      if (child.isMesh && child.geometry) {
+        const geom = child.geometry;
+        for (const name in geom.attributes) {
+          const attr = geom.attributes[name];
+          if (!attr) continue;
+          const isSupported =
+            !attr.isInterleavedBufferAttribute &&
+            (attr.array instanceof Float32Array ||
+             attr.array instanceof Int8Array ||
+             attr.array instanceof Uint8Array ||
+             attr.array instanceof Uint8ClampedArray ||
+             attr.array instanceof Int16Array ||
+             attr.array instanceof Uint16Array ||
+             attr.array instanceof Uint32Array);
+
+          if (!isSupported) {
+            const itemSize = attr.itemSize;
+            const count = attr.count;
+            const newArray = new Float32Array(count * itemSize);
+            for (let i = 0; i < count; i++) {
+              if (itemSize >= 1) newArray[i * itemSize] = attr.getX(i);
+              if (itemSize >= 2) newArray[i * itemSize + 1] = attr.getY(i);
+              if (itemSize >= 3) newArray[i * itemSize + 2] = attr.getZ(i);
+              if (itemSize >= 4) newArray[i * itemSize + 3] = attr.getW(i);
+            }
+            geom.setAttribute(name, new THREE.BufferAttribute(newArray, itemSize, attr.normalized));
+          }
+        }
+        if (geom.index && geom.index.array) {
+          if (!(geom.index.array instanceof Uint16Array || geom.index.array instanceof Uint32Array)) {
+            geom.setIndex(new THREE.BufferAttribute(new Uint32Array(geom.index.array), 1));
+          }
+        }
+      }
+    });
+  }
+
   const exportGlb = (obj) => new Promise((ok, fail) => {
     try {
+      sanitizeGeometryForExport(obj);
       new THREE.GLTFExporter().parse(obj, ok, { binary: true, maxTextureSize: MAX_TEXTURE });
     } catch (err) { fail(err); }
   });
