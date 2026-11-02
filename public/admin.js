@@ -396,50 +396,61 @@
       tex = await new THREE.TextureLoader().loadAsync(url).finally(() => URL.revokeObjectURL(url));
       tex.encoding = THREE.sRGBEncoding;
     }
-    // Keep only what the customizer renders: base color texture and color. Normal/roughness/metal maps
-    // are typically most of a model's weight and the customizer never uses them.
-    obj.traverse(o => {
-      if (!o.isMesh) return;
-      const mats = Array.isArray(o.material) ? o.material : [o.material];
-      const out = mats.map(src => {
-        const img = src && src.map && src.map.image;
-        const map = tex || (img && img.width > 1 ? src.map : null);
-        const alpha = !!src && (src.transparent || src.alphaTest > 0);
-        if (map) map.format = alpha ? THREE.RGBAFormat : THREE.RGBFormat; // RGB -> exported as JPEG
-        return new THREE.MeshStandardMaterial({
-          name: (src && src.name) || '',
-          map,
-          color: map ? 0xffffff : ((src && src.color) || new THREE.Color(0xcccccc)),
-          transparent: alpha,
-          alphaTest: (src && src.alphaTest) || 0,
-          roughness: 0.6,
-          metalness: 0.05,
-          side: THREE.DoubleSide,
-        });
+    // Apply external texture if provided, but PRESERVE original model materials, shaders, and textures
+    if (tex) {
+      obj.traverse(o => {
+        if (o.isMesh && o.material) {
+          const mats = Array.isArray(o.material) ? o.material : [o.material];
+          mats.forEach(m => {
+            m.map = tex;
+            m.needsUpdate = true;
+          });
+        }
       });
-      o.material = Array.isArray(o.material) ? out : out[0];
+    }
+    // Ensure all materials render double-sided with true sRGB color fidelity
+    obj.traverse(o => {
+      if (o.isMesh && o.material) {
+        const mats = Array.isArray(o.material) ? o.material : [o.material];
+        mats.forEach(m => {
+          m.side = THREE.DoubleSide;
+          if (m.map) m.map.encoding = THREE.sRGBEncoding;
+          if (m.transparent) m.alphaTest = Math.max(m.alphaTest || 0, 0.05);
+        });
+      }
     });
     return obj;
   }
 
-  // Generate the 3 lightweight WebP spritesheets from the loaded 3D scene:
-  // 1. spin.webp: 24 frames horizontal strip (1024x42), 360° turn for picker card preview
-  // 2. turn.webp: 48 frames sheet (1024x768, 8 cols x 6 rows, 128x128 px), full 360° turn
-  // 3. wob.webp:  32 frames sheet (1024x512, 8 cols x 4 rows, 128x128 px), wobble/tilt animation
+  // Generate crisp, high-resolution WebP spritesheets from the loaded 3D scene:
+  // 1. spin.webp:  24 frames horizontal strip (9216x384, 24x 384x384 px), 360° card preview
+  // 2. turn.webp:  48 frames sheet (3072x2304, 8 cols x 6 rows, 384x384 px), full 360° turn for slider
+  // 3. wob.webp:   32 frames sheet (3072x1536, 8 cols x 4 rows, 384x384 px), 3D wobble/tilt for slider
+  // 4. thumb.webp: 1024x1024 px high-res front view placed directly onto shirt proof
   async function renderModelSheets(obj) {
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
+    const FRAME_SIZE = 384; // Razor-sharp 384px frames
+    const renderer = new THREE.WebGLRenderer({
+      antialias: true,
+      alpha: true,
+      preserveDrawingBuffer: true,
+      powerPreference: 'high-performance'
+    });
     renderer.outputEncoding = THREE.sRGBEncoding;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.15;
 
     const scene = new THREE.Scene();
-    scene.add(new THREE.AmbientLight(0xffffff, 0.75));
-    const sun = new THREE.DirectionalLight(0xffffff, 0.9);
-    sun.position.set(2, 3, 4);
+    scene.add(new THREE.AmbientLight(0xffffff, 0.85));
+    const sun1 = new THREE.DirectionalLight(0xffffff, 1.1);
+    sun1.position.set(3, 4, 5);
+    const sun2 = new THREE.DirectionalLight(0xffffff, 0.5);
+    sun2.position.set(-3, 2, -4);
     const pivot = new THREE.Group();
-    scene.add(sun, pivot);
+    scene.add(sun1, sun2, pivot);
     const parent = obj.parent;
     pivot.add(obj);
 
-    // Center the model on the pivot and frame its bounding sphere so it stays in frame
+    // Center the model on the pivot and frame its bounding sphere
     const sphere = new THREE.Box3().setFromObject(obj).getBoundingSphere(new THREE.Sphere());
     const offset = sphere.center.clone();
     obj.position.sub(offset);
@@ -448,43 +459,42 @@
     camera.position.set(0, 0, dist);
 
     try {
-      renderer.setSize(128, 128);
+      renderer.setSize(FRAME_SIZE, FRAME_SIZE);
 
-      // 1. spin.webp: 24 frames horizontal strip (1024 x 42)
+      // 1. spin.webp: 24 frames horizontal strip (9216 x 384)
       const spinCanvas = document.createElement('canvas');
-      spinCanvas.width = 1024;
-      spinCanvas.height = 42;
+      spinCanvas.width = 24 * FRAME_SIZE;
+      spinCanvas.height = FRAME_SIZE;
       const spinCtx = spinCanvas.getContext('2d');
-      const stepW = 1024 / 24;
       for (let i = 0; i < 24; i++) {
         pivot.rotation.set(0, (i / 24) * Math.PI * 2, 0);
         renderer.render(scene, camera);
-        spinCtx.drawImage(renderer.domElement, i * stepW, 0, stepW, 42);
+        spinCtx.drawImage(renderer.domElement, i * FRAME_SIZE, 0, FRAME_SIZE, FRAME_SIZE);
       }
       const spinBlob = await new Promise((ok, fail) =>
-        spinCanvas.toBlob(b => b ? ok(b) : fail(new Error('spin render failed')), 'image/webp', 0.82)
+        spinCanvas.toBlob(b => b ? ok(b) : fail(new Error('spin render failed')), 'image/webp', 0.88)
       );
 
-      // 2. turn.webp: 48 frames spritesheet (1024 x 768, 8 cols x 6 rows)
+      // 2. turn.webp: 48 frames sheet (3072 x 2304, 8 cols x 6 rows)
       const turnCanvas = document.createElement('canvas');
-      turnCanvas.width = 1024;
-      turnCanvas.height = 768;
+      turnCanvas.width = 8 * FRAME_SIZE;
+      turnCanvas.height = 6 * FRAME_SIZE;
       const turnCtx = turnCanvas.getContext('2d');
       for (let i = 0; i < 48; i++) {
         const col = i % 8;
         const row = Math.floor(i / 8);
         pivot.rotation.set(0, (i / 48) * Math.PI * 2, 0);
         renderer.render(scene, camera);
-        turnCtx.drawImage(renderer.domElement, col * 128, row * 128, 128, 128);
+        turnCtx.drawImage(renderer.domElement, col * FRAME_SIZE, row * FRAME_SIZE, FRAME_SIZE, FRAME_SIZE);
       }
       const turnBlob = await new Promise((ok, fail) =>
-        turnCanvas.toBlob(b => b ? ok(b) : fail(new Error('turn render failed')), 'image/webp', 0.82)
+        turnCanvas.toBlob(b => b ? ok(b) : fail(new Error('turn render failed')), 'image/webp', 0.88)
       );
 
-      // 3. wob.webp: 32 frames spritesheet (1024 x 512, 8 cols x 4 rows)
+      // 3. wob.webp: 32 frames sheet (3072 x 1536, 8 cols x 4 rows)
       const wobCanvas = document.createElement('canvas');
-      wobCanvas.width = 1024;
-      wobCanvas.height = 512;
+      wobCanvas.width = 8 * FRAME_SIZE;
+      wobCanvas.height = 4 * FRAME_SIZE;
       const wobCtx = wobCanvas.getContext('2d');
       for (let i = 0; i < 32; i++) {
         const col = i % 8;
@@ -496,13 +506,21 @@
           Math.sin(progress) * 0.18
         );
         renderer.render(scene, camera);
-        wobCtx.drawImage(renderer.domElement, col * 128, row * 128, 128, 128);
+        wobCtx.drawImage(renderer.domElement, col * FRAME_SIZE, row * FRAME_SIZE, FRAME_SIZE, FRAME_SIZE);
       }
       const wobBlob = await new Promise((ok, fail) =>
-        wobCanvas.toBlob(b => b ? ok(b) : fail(new Error('wob render failed')), 'image/webp', 0.82)
+        wobCanvas.toBlob(b => b ? ok(b) : fail(new Error('wob render failed')), 'image/webp', 0.88)
       );
 
-      return { spinBlob, turnBlob, wobBlob };
+      // 4. thumb.webp: High-res front view (1024 x 1024)
+      renderer.setSize(1024, 1024);
+      pivot.rotation.set(0, 0, 0);
+      renderer.render(scene, camera);
+      const thumbBlob = await new Promise((ok, fail) =>
+        renderer.domElement.toBlob(b => b ? ok(b) : fail(new Error('thumb render failed')), 'image/webp', 0.92)
+      );
+
+      return { spinBlob, turnBlob, wobBlob, thumbBlob };
     } finally {
       obj.position.add(offset);
       pivot.remove(obj);
@@ -512,27 +530,28 @@
     }
   }
 
-  // model (+ optional mtl/texture/thumb Files) -> [[Blob, publishedName]] ready to upload.
-  // Preserves the original 3D model and generates the 3 WebP spritesheets for instant, lightweight playback.
+  // model -> [[Blob, publishedName]] ready to upload.
+  // Generates high-res WebP sheets and DOES NOT upload the heavy .glb to Cloudflare.
   async function optimizeModel(model, mtl, texture, thumb, setStatus) {
     setStatus('Loading 3D model…');
     const parts = [];
     try {
       const obj = await loadObject(model, texture);
-      setStatus('Rendering WebP sheets…');
-      const { spinBlob, turnBlob, wobBlob } = await renderModelSheets(obj);
+      setStatus('Rendering high-res WebP sheets…');
+      const { spinBlob, turnBlob, wobBlob, thumbBlob } = await renderModelSheets(obj);
       parts.push([spinBlob, 'spin.webp']);
       parts.push([turnBlob, 'turn.webp']);
       parts.push([wobBlob, 'wob.webp']);
+      if (thumb) {
+        parts.push([thumb, `thumb.${extOf(thumb).replace('jpeg', 'jpg')}`]);
+      } else {
+        parts.push([thumbBlob, 'thumb.webp']);
+      }
     } catch (err) {
-      console.warn('WebP sheet rendering failed:', err);
+      console.error('WebP sheet rendering failed:', err);
       showToast(`Warning: WebP preview rendering failed (${err.message})`, 'error');
     }
-    // Upload original model directly to R2
-    parts.push([model, `model.${extOf(model)}`]);
-    if (mtl) parts.push([mtl, 'model.mtl']);
-    if (texture) parts.push([texture, `texture.${extOf(texture).replace('jpeg', 'jpg')}`]);
-    if (thumb) parts.push([thumb, `thumb.${extOf(thumb).replace('jpeg', 'jpg')}`]);
+    // Notice: We intentionally DO NOT upload the .glb to Cloudflare to save bandwidth and storage.
     return parts;
   }
 
@@ -590,10 +609,9 @@
     btn.disabled = true;
     try {
       const parts = await optimizeModel(model, file('modelMtl'), file('modelTexture'), file('modelThumb'), setStatus);
-      const before = [model, file('modelMtl'), file('modelTexture')].reduce((n, f) => n + (f ? f.size : 0), 0);
-      const after = parts.filter(([, n]) => /^(model|texture)/.test(n)).reduce((n, [b]) => n + b.size, 0);
+      const totalWebpSize = parts.reduce((n, [b]) => n + b.size, 0);
       await publishModel(slug, parts, [], setStatus);
-      showToast(`Model "${slug}" uploaded: ${fmtSize(before)} → ${fmtSize(after)}`, 'success');
+      showToast(`Model "${slug}" uploaded as high-res WebP sheets (${fmtSize(totalWebpSize)})`, 'success');
       e.target.reset();
       loadModels();
     } catch (err) {

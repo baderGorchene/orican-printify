@@ -130,7 +130,11 @@
       .catch(function (e) { delete files[url]; throw e; }));
   }
 
-  function modelFiles(m) { return Promise.all([m.model, m.mtl, m.texture].filter(Boolean).map(file)); }
+  function modelFiles(m) {
+    var urls = [m.model, m.mtl, m.texture].filter(Boolean);
+    if (!urls.length && m.thumb) urls = [m.thumb];
+    return Promise.all(urls.map(file));
+  }
 
   function place(m) {
     return modelFiles(m).then(function (fs) {
@@ -276,3 +280,4 @@
   apply();
 })();
 </script>
+

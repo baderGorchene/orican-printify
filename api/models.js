@@ -23,7 +23,7 @@ const DOWNLOADED = ["model", "mtl", "texture"];
 const CONFIG = "config/catalog";
 const EMPTY = () => ({ models: {}, packs: [] });
 
-// Listing -> catalogue entries (newest file per kind); folders without a model are skipped, newest first.
+// Listing -> catalogue entries (newest file per kind); entries with WebP sheets or model are kept, newest first.
 function group(blobs) {
   const by = {};
   for (const b of blobs) {
@@ -35,8 +35,12 @@ function group(blobs) {
     if (!e.files[kind] || at >= e.files[kind].at) e.files[kind] = { url: b.url, size: b.size || 0, at };
   }
   return Object.values(by)
-    .filter((e) => e.files.model)
-    .sort((a, b) => b.files.model.at - a.files.model.at)
+    .filter((e) => e.files.spin || e.files.turn || e.files.model)
+    .sort((a, b) => {
+      const atA = Math.max(a.files.model?.at || 0, a.files.spin?.at || 0, a.files.turn?.at || 0, a.files.thumb?.at || 0);
+      const atB = Math.max(b.files.model?.at || 0, b.files.spin?.at || 0, b.files.turn?.at || 0, b.files.thumb?.at || 0);
+      return atB - atA;
+    })
     .map(({ slug, files }) => {
       const turn = files.turn ? files.turn.url : null;
       const wob = files.wob ? files.wob.url : null;
@@ -49,10 +53,11 @@ function group(blobs) {
           { src: wob, cols: 8, from: 48, n: 32 }
         ]
       } : null;
+      const totalSize = Object.values(files).reduce((n, f) => n + (f?.size || 0), 0);
       return {
         slug,
         name: slug.replace(/-/g, " "),
-        model: files.model.url,
+        model: files.model ? files.model.url : null,
         mtl: files.mtl ? files.mtl.url : null,
         texture: files.texture ? files.texture.url : null,
         thumb: files.thumb ? files.thumb.url : null,
@@ -61,7 +66,7 @@ function group(blobs) {
         wob,
         frames: 24,
         anim,
-        size: DOWNLOADED.reduce((n, k) => n + (files[k] ? files[k].size : 0), 0),
+        size: totalSize,
       };
     });
 }
@@ -259,16 +264,24 @@ if (require.main === module) {
     { pathname: "models/skull/spin-Q9w8E7.webp", url: "u9", uploadedAt: "2026-04-01", size: 5 },
     { pathname: "models/skull/turn.webp", url: "u10", uploadedAt: "2026-04-01", size: 50 },
     { pathname: "models/skull/wob.webp", url: "u11", uploadedAt: "2026-04-01", size: 40 },
+    // webp-only model (no .glb uploaded to Cloudflare)
+    { pathname: "models/cauldron/spin.webp", url: "u12", uploadedAt: "2026-05-01", size: 200 },
+    { pathname: "models/cauldron/turn.webp", url: "u13", uploadedAt: "2026-05-01", size: 300 },
+    { pathname: "models/cauldron/wob.webp", url: "u14", uploadedAt: "2026-05-01", size: 250 },
   ];
   const g = group(blobs);
-  assert.deepStrictEqual(g.map((e) => e.slug), ["skull", "rose"]);
-  assert.deepStrictEqual(g[1], { slug: "rose", name: "rose", model: "u3", mtl: "u4", texture: "u5", thumb: null, spin: null, turn: null, wob: null, frames: 24, anim: null, size: 0 });
-  assert.strictEqual(g[0].model, "u8");
-  assert.strictEqual(g[0].spin, "u9");
-  assert.strictEqual(g[0].turn, "u10");
-  assert.strictEqual(g[0].wob, "u11");
-  assert.strictEqual(g[0].frames, 24);
-  assert.deepStrictEqual(g[0].anim, {
+  assert.deepStrictEqual(g.map((e) => e.slug), ["cauldron", "skull", "rose"]);
+  assert.strictEqual(g[0].slug, "cauldron");
+  assert.strictEqual(g[0].model, null);
+  assert.strictEqual(g[0].spin, "u12");
+  assert.strictEqual(g[0].size, 750);
+  assert.strictEqual(g[1].slug, "skull");
+  assert.strictEqual(g[1].model, "u8");
+  assert.strictEqual(g[1].spin, "u9");
+  assert.strictEqual(g[1].turn, "u10");
+  assert.strictEqual(g[1].wob, "u11");
+  assert.strictEqual(g[1].frames, 24);
+  assert.deepStrictEqual(g[1].anim, {
     turn: 48,
     wobble: 32,
     fps: 40,
@@ -277,8 +290,8 @@ if (require.main === module) {
       { src: "u11", cols: 8, from: 48, n: 32 }
     ]
   });
-  assert.strictEqual(g[0].thumb, "u2");
-  assert.strictEqual(g[0].size, 30); // only the current model counts; thumb/spin are not downloaded on pick
+  assert.strictEqual(g[1].thumb, "u2");
+  assert.strictEqual(g[1].size, 132);
   assert(!PATH.test("models/x/model.exe") && !PATH.test("designs/x.png") && !PATH.test("models/X/model.glb"));
   assert(!PATH.test("models/x/model-a/b.glb") && !PATH.test("models/x/spin.glb"));
   assert(PATH.test("models/doggo/turn.webp") && PATH.test("models/doggo/wob.webp") && PATH.test("models/doggo/spin.webp"));
@@ -296,10 +309,10 @@ if (require.main === module) {
   assert.deepStrictEqual(cfg.packs[0].models, ["skull", "rose", "ghost"]); // deduped
   const at = (d) => Date.parse(d);
   const oct20 = views(g, cfg, at("2026-10-20T12:00:00Z"));
-  assert.deepStrictEqual(oct20.list.map((e) => e.slug), ["skull", "rose"]);
+  assert.deepStrictEqual(oct20.list.map((e) => e.slug), ["cauldron", "skull", "rose"]);
   assert.deepStrictEqual(oct20.shop.packs, [{ id: "halloween", name: "Halloween", until: "2026-11-01T00:00:00.000Z", models: ["skull", "rose"] }]);
   const nov2 = views(g, cfg, at("2026-11-02T00:00:00Z"));
-  assert.deepStrictEqual(nov2.list.map((e) => e.slug), ["rose"]); // skull's window ended
+  assert.deepStrictEqual(nov2.list.map((e) => e.slug), ["cauldron", "rose"]); // skull's window ended
   assert.deepStrictEqual(nov2.shop.packs, []); // halloween over, xmas not started
   const dec5 = views(g, cfg, at("2026-12-05T00:00:00Z"));
   assert.deepStrictEqual(dec5.shop.packs.map((p) => p.models), [["rose"]]); // xmas, open-ended
