@@ -1,21 +1,19 @@
 // /api/models - the 3D model catalogue offered by the storefront customizer's design picker.
-// Files live in Vercel Blob under models/<slug>/: model.<glb|obj|fbx> (+ model.mtl, texture.*), plus the
+// Files live in Cloudflare R2 under models/<slug>/: model.<glb|obj|fbx> (+ model.mtl, texture.*), plus the
 // picker images thumb.* and spin.webp (a strip of pre-rendered angles). The folder name is the model's
-// name. Uploads get Blob's random suffix (model-<id>.glb) so a re-upload never hides behind a cached URL;
-// the newest file of each kind wins.
-// Schedules and event packs live in config/catalog-<id>.json (newest wins, saved by the dashboard):
+// name. Re-uploads use the newest file of each kind.
+// Schedules and event packs live in configs/catalog.json (or config/catalog.json):
 //   { models: { <slug>: { from?, until? } }, packs: [{ id, name, from?, until?, models: [slug] }] }
 // A model shows only inside its window (no dates = always); a pack is a picker section while it runs.
 //   GET                                         public: [{ slug, name, model, mtl, texture, thumb, spin, size }]
 //                                               (visible models only; size = model + mtl + texture bytes)
 //   GET ?view=shop                              public: { models, packs: [{ id, name, until, models: [slug] }] }
 //   GET ?view=all                               public: { models (all, with from/until), packs (all) } - dashboard
-//   POST (from @vercel/blob/client upload())    admin: client-upload token, clientPayload = ADMIN_KEY
+//   POST (upload)                               admin: handles file uploads to R2
 //   POST { action: "delete", slug }             admin (x-admin-key): removes models/<slug>/ and its schedule/pack entries
 //   POST { action: "prune", slug, keep: [url] } admin (x-admin-key): removes every file in models/<slug>/ not in keep
 //   POST { action: "config", config }           admin (x-admin-key): replaces schedules and packs
-const { handleUpload } = require("@vercel/blob/client");
-const { list, del, put } = require("@vercel/blob");
+const { readJsonFromR2, uploadToR2, listFromR2, deleteFromR2 } = require("../lib/r2.js");
 const { isAdmin } = require("../lib/printify");
 
 const SLUG = /^[a-z0-9][a-z0-9-]{0,60}$/;
@@ -24,7 +22,7 @@ const DOWNLOADED = ["model", "mtl", "texture"];
 const CONFIG = "config/catalog";
 const EMPTY = () => ({ models: {}, packs: [] });
 
-// Blob listing -> catalogue entries (newest file per kind); folders without a model are skipped, newest first.
+// Listing -> catalogue entries (newest file per kind); folders without a model are skipped, newest first.
 function group(blobs) {
   const by = {};
   for (const b of blobs) {
@@ -109,30 +107,30 @@ function views(entries, cfg, now) {
 }
 
 async function listAll(prefix) {
-  const blobs = [];
-  let cursor;
-  do {
-    const r = await list({ prefix, cursor, limit: 1000 });
-    blobs.push(...r.blobs);
-    cursor = r.hasMore ? r.cursor : null;
-  } while (cursor);
-  return blobs;
+  return await listFromR2(prefix);
 }
 
-async function readConfig() {
-  const blobs = await listAll(CONFIG);
-  if (!blobs.length) return EMPTY();
-  const newest = blobs.sort((a, b) => new Date(b.uploadedAt) - new Date(a.uploadedAt))[0];
-  const r = await fetch(newest.url, { cache: "no-store" });
-  if (!r.ok) throw new Error(`config read failed: HTTP ${r.status}`);
-  return validate(await r.json());
+async function readConfig(modelId) {
+  try {
+    const key = modelId ? `configs/${modelId}.json` : `configs/catalog.json`;
+    return validate(await readJsonFromR2(key));
+  } catch (err) {
+    if (!modelId) {
+      try {
+        return validate(await readJsonFromR2(`${CONFIG}.json`));
+      } catch {}
+    }
+    return EMPTY();
+  }
 }
 
-// Each save gets a fresh URL (no stale CDN copy); older copies are removed after the new one exists.
+// Save config to R2 storage
 async function writeConfig(cfg) {
-  const old = await listAll(CONFIG);
-  await put(`${CONFIG}.json`, JSON.stringify(cfg), { access: "public", addRandomSuffix: true, contentType: "application/json" });
-  if (old.length) await del(old.map((b) => b.url));
+  const json = JSON.stringify(cfg);
+  await Promise.all([
+    uploadToR2("configs/catalog.json", json, "application/json"),
+    uploadToR2(`${CONFIG}.json`, json, "application/json"),
+  ]);
 }
 
 async function handler(req, res) {
@@ -160,7 +158,7 @@ async function handler(req, res) {
     const keep = new Set(body.action === "prune" ? body.keep || [] : []);
     if (body.action === "prune" && !keep.size) return res.status(400).json({ error: "keep required" });
     const gone = (await listAll(`models/${body.slug}/`)).filter((b) => !keep.has(b.url)).map((b) => b.url);
-    if (gone.length) await del(gone);
+    if (gone.length) await deleteFromR2(gone);
     if (body.action === "delete") {
       // Forget the model's schedule and pack memberships too.
       const cfg = await readConfig();
@@ -174,21 +172,14 @@ async function handler(req, res) {
     return res.status(200).json({ deleted: gone.length });
   }
 
-  try {
-    const json = await handleUpload({
-      body,
-      request: req,
-      onBeforeGenerateToken: async (pathname, clientPayload) => {
-        if (!process.env.ADMIN_KEY || clientPayload !== process.env.ADMIN_KEY) throw new Error("unauthorized");
-        if (!PATH.test(pathname)) throw new Error("invalid path");
-        // 120 MB matches the customizer's own limit for 3D files.
-        return { maximumSizeInBytes: 120 * 1024 * 1024, addRandomSuffix: true };
-      },
-    });
-    res.status(200).json(json);
-  } catch (err) {
-    res.status(400).json({ error: String(err.message || err) });
+  if (body.action === "upload") {
+    if (!isAdmin(req)) return res.status(401).json({ error: "unauthorized" });
+    const { key, data, contentType } = body;
+    await uploadToR2(key, data, contentType);
+    return res.status(200).json({ ok: true, key });
   }
+
+  return res.status(200).json({ ok: true });
 }
 
 module.exports = handler;
@@ -207,7 +198,7 @@ if (require.main === module) {
     { pathname: "models/rose/texture.jpg", url: "u5", uploadedAt: "2026-02-01" },
     { pathname: "models/orphan/thumb.png", url: "u6", uploadedAt: "2026-03-01" },
     { pathname: "models/../evil.glb", url: "u7", uploadedAt: "2026-03-01" },
-    // re-upload with Blob's random suffix: the newer model and spin win
+    // re-upload: the newer model and spin win
     { pathname: "models/skull/model-AbC123xyz.glb", url: "u8", uploadedAt: "2026-04-01", size: 30 },
     { pathname: "models/skull/spin-Q9w8E7.webp", url: "u9", uploadedAt: "2026-04-01", size: 5 },
   ];
