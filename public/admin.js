@@ -491,28 +491,7 @@
         turnCanvas.toBlob(b => b ? ok(b) : fail(new Error('turn render failed')), 'image/webp', 0.88)
       );
 
-      // 3. wob.webp: 32 frames sheet (3072 x 1536, 8 cols x 4 rows)
-      const wobCanvas = document.createElement('canvas');
-      wobCanvas.width = 8 * FRAME_SIZE;
-      wobCanvas.height = 4 * FRAME_SIZE;
-      const wobCtx = wobCanvas.getContext('2d');
-      for (let i = 0; i < 32; i++) {
-        const col = i % 8;
-        const row = Math.floor(i / 8);
-        const progress = (i / 32) * Math.PI * 2;
-        pivot.rotation.set(
-          Math.sin(progress) * 0.08,
-          0,
-          Math.sin(progress) * 0.18
-        );
-        renderer.render(scene, camera);
-        wobCtx.drawImage(renderer.domElement, col * FRAME_SIZE, row * FRAME_SIZE, FRAME_SIZE, FRAME_SIZE);
-      }
-      const wobBlob = await new Promise((ok, fail) =>
-        wobCanvas.toBlob(b => b ? ok(b) : fail(new Error('wob render failed')), 'image/webp', 0.88)
-      );
-
-      // 4. thumb.webp: High-res front view (1024 x 1024)
+      // 3. thumb.webp: High-res front view (1024 x 1024)
       renderer.setSize(1024, 1024);
       pivot.rotation.set(0, 0, 0);
       renderer.render(scene, camera);
@@ -520,7 +499,7 @@
         renderer.domElement.toBlob(b => b ? ok(b) : fail(new Error('thumb render failed')), 'image/webp', 0.92)
       );
 
-      return { spinBlob, turnBlob, wobBlob, thumbBlob };
+      return { spinBlob, turnBlob, thumbBlob };
     } finally {
       obj.position.add(offset);
       pivot.remove(obj);
@@ -538,10 +517,9 @@
     try {
       const obj = await loadObject(model, texture);
       setStatus('Rendering high-res WebP sheets…');
-      const { spinBlob, turnBlob, wobBlob, thumbBlob } = await renderModelSheets(obj);
+      const { spinBlob, turnBlob, thumbBlob } = await renderModelSheets(obj);
       parts.push([spinBlob, 'spin.webp']);
       parts.push([turnBlob, 'turn.webp']);
-      parts.push([wobBlob, 'wob.webp']);
       if (thumb) {
         parts.push([thumb, `thumb.${extOf(thumb).replace('jpeg', 'jpg')}`]);
       } else {

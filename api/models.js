@@ -44,13 +44,12 @@ function group(blobs) {
     .map(({ slug, files }) => {
       const turn = files.turn ? files.turn.url : null;
       const wob = files.wob ? files.wob.url : null;
-      const anim = (turn && wob) ? {
+      const anim = turn ? {
         turn: 48,
-        wobble: 32,
+        wobble: 0,
         fps: 40,
         sheets: [
-          { src: turn, cols: 8, from: 0, n: 48 },
-          { src: wob, cols: 8, from: 48, n: 32 }
+          { src: turn, cols: 8, from: 0, n: 48 }
         ]
       } : null;
       const totalSize = Object.values(files).reduce((n, f) => n + (f?.size || 0), 0);
@@ -283,11 +282,10 @@ if (require.main === module) {
   assert.strictEqual(g[1].frames, 24);
   assert.deepStrictEqual(g[1].anim, {
     turn: 48,
-    wobble: 32,
+    wobble: 0,
     fps: 40,
     sheets: [
-      { src: "u10", cols: 8, from: 0, n: 48 },
-      { src: "u11", cols: 8, from: 48, n: 32 }
+      { src: "u10", cols: 8, from: 0, n: 48 }
     ]
   });
   assert.strictEqual(g[1].thumb, "u2");

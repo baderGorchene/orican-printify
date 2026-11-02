@@ -65,29 +65,27 @@
   // Designs hosted in the theme's assets rather than the dashboard, placed ahead of the dashboard's
   // in their event pack (the pack is created if the dashboard isn't running it). Each is unshifted
   // in turn, so they end up in the reverse of this list: the last one comes first. `frames` is the
-  // spin strip's frame count (dashboard strips have 12 or 24). `anim` is a sheet rendered from the model
-  // for the homepage slider: a full turn, then a wobble around the same axis (see
-  // snippets/orican-design-slider.liquid).
-  // Two sheets of 384px frames, 8 wide: the turn (48 frames), then the wobble (32).
-  function themeAnim(turn, wob) {
-    return { turn: 48, wobble: 32, fps: 40,
-      sheets: [{ src: turn, cols: 8, from: 0, n: 48 }, { src: wob, cols: 8, from: 48, n: 32 }] };
+  // spin strip's frame count (dashboard strips have 12 or 24). `anim` is a pure 360° rotation sheet (48 frames)
+  // for the homepage slider without any wobble or jiggle at the end.
+  function themeAnim(turn) {
+    return { turn: 48, wobble: 0, fps: 40,
+      sheets: [{ src: turn, cols: 8, from: 0, n: 48 }] };
   }
   var THEME_MODELS = [
     { slug: "witch", name: "Witch", pack: "halloween", frames: 24,
-      anim: themeAnim({{ 'orican-witch-turn.webp' | asset_url | json }}, {{ 'orican-witch-wob.webp' | asset_url | json }}),
+      anim: themeAnim({{ 'orican-witch-turn.webp' | asset_url | json }}),
       model: {{ 'orican-witch.glb' | asset_url | json }}, spin: {{ 'orican-witch-spin.webp' | asset_url | json }} },
     { slug: "cauldron", name: "Cauldron", pack: "halloween", frames: 24,
-      anim: themeAnim({{ 'orican-cauldron-turn.webp' | asset_url | json }}, {{ 'orican-cauldron-wob.webp' | asset_url | json }}),
+      anim: themeAnim({{ 'orican-cauldron-turn.webp' | asset_url | json }}),
       model: {{ 'orican-cauldron.glb' | asset_url | json }}, spin: {{ 'orican-cauldron-spin.webp' | asset_url | json }} },
     { slug: "ghost", name: "Ghost", pack: "halloween", frames: 24,
-      anim: themeAnim({{ 'orican-ghost-turn.webp' | asset_url | json }}, {{ 'orican-ghost-wob.webp' | asset_url | json }}),
+      anim: themeAnim({{ 'orican-ghost-turn.webp' | asset_url | json }}),
       model: {{ 'orican-ghost.glb' | asset_url | json }}, spin: {{ 'orican-ghost-spin.webp' | asset_url | json }} },
     { slug: "pumpkin", name: "Pumpkin", pack: "halloween", frames: 24,
-      anim: themeAnim({{ 'orican-pumpkin-turn.webp' | asset_url | json }}, {{ 'orican-pumpkin-wob.webp' | asset_url | json }}),
+      anim: themeAnim({{ 'orican-pumpkin-turn.webp' | asset_url | json }}),
       model: {{ 'orican-pumpkin.glb' | asset_url | json }}, spin: {{ 'orican-pumpkin-spin.webp' | asset_url | json }} },
     { slug: "frankenstein", name: "Frankenstein", pack: "halloween", frames: 24,
-      anim: themeAnim({{ 'orican-frankenstein-turn.webp' | asset_url | json }}, {{ 'orican-frankenstein-wob.webp' | asset_url | json }}),
+      anim: themeAnim({{ 'orican-frankenstein-turn.webp' | asset_url | json }}),
       model: {{ 'orican-frankenstein.glb' | asset_url | json }}, spin: {{ 'orican-frankenstein-spin.webp' | asset_url | json }} }
   ];
   var HIDDEN = ["yellow-robot", "yellow-minion-robot", "aa", "ab", "ac"];
