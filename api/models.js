@@ -9,11 +9,12 @@
 //                                               (visible models only; size = model + mtl + texture bytes)
 //   GET ?view=shop                              public: { models, packs: [{ id, name, until, models: [slug] }] }
 //   GET ?view=all                               public: { models (all, with from/until), packs (all) } - dashboard
+//   GET ?file=models/<slug>/<file>              public: serves model/texture binary directly from R2
 //   POST { action: "presign", key }             admin (x-admin-key): generates presigned R2 upload URL
 //   POST { action: "delete", slug }             admin (x-admin-key): removes models/<slug>/ and its schedule/pack entries
 //   POST { action: "prune", slug, keep: [url] } admin (x-admin-key): removes every file in models/<slug>/ not in keep
 //   POST { action: "config", config }           admin (x-admin-key): replaces schedules and packs
-const { readJsonFromR2, uploadToR2, listFromR2, deleteFromR2, getPresignedUploadUrl } = require("../lib/r2.js");
+const { readJsonFromR2, readBufferFromR2, uploadToR2, listFromR2, deleteFromR2, getPresignedUploadUrl } = require("../lib/r2.js");
 const { isAdmin } = require("../lib/printify");
 
 const SLUG = /^[a-z0-9][a-z0-9-]{0,60}$/;
@@ -135,7 +136,32 @@ async function writeConfig(cfg) {
 
 async function handler(req, res) {
   if (req.method === "GET") {
-    const view = new URL(req.url, "http://x").searchParams.get("view");
+    const urlObj = new URL(req.url, "http://x");
+    const file = urlObj.searchParams.get("file");
+    if (file) {
+      if (!PATH.test(file)) return res.status(400).json({ error: "invalid file path" });
+      try {
+        const buf = await readBufferFromR2(file);
+        const ext = file.split(".").pop().toLowerCase();
+        const types = {
+          glb: "model/gltf-binary",
+          obj: "text/plain",
+          mtl: "text/plain",
+          png: "image/png",
+          jpg: "image/jpeg",
+          jpeg: "image/jpeg",
+          webp: "image/webp",
+        };
+        res.setHeader("Content-Type", types[ext] || "application/octet-stream");
+        res.setHeader("Access-Control-Allow-Origin", "*");
+        res.setHeader("Cache-Control", "public, s-maxage=31536000, max-age=86400, stale-while-revalidate=604800");
+        return res.status(200).send(buf);
+      } catch (err) {
+        return res.status(404).json({ error: "file not found" });
+      }
+    }
+
+    const view = urlObj.searchParams.get("view");
     const [blobs, cfg] = await Promise.all([listAll("models/"), readConfig()]);
     const v = views(group(blobs), cfg, Date.now());
     res.setHeader("Access-Control-Allow-Origin", "*");
@@ -189,8 +215,7 @@ async function handler(req, res) {
     const { key, data, contentType } = body;
     const buf = Buffer.isBuffer(data) ? data : Buffer.from(data, "base64");
     await uploadToR2(key, buf, contentType);
-    const publicBase = process.env.R2_PUBLIC_URL || `https://${process.env.R2_BUCKET_NAME}.${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`;
-    return res.status(200).json({ ok: true, key, url: `${publicBase}/${key}` });
+    return res.status(200).json({ ok: true, key });
   }
 
   return res.status(200).json({ ok: true });
