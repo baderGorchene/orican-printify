@@ -1,0 +1,511 @@
+{%- comment -%}ORICAN: 3D model catalogue picker, opened by an "Add design" + centered in the print frame while the shirt is blank, and by a "Change design" pill under the frame once a model is placed. Both buttons live inside .print-frame (created and positioned by the customizer), so they follow the shirt. Models are managed in the orican-printify dashboard's 3D Models tab and listed dynamically by /api/models?view=shop with their generated WebP sprite sheets (spin.webp, turn.webp, wob.webp), which also returns the event packs running now (shown as sections at the top). Browsing never loads 3D: each card shows spin.webp, a strip of 24 pre-rendered angles played with CSS steps(24). A model file is downloaded only once a shopper lingers on or presses a card, then handed to #fileInput, the same path as a customer upload. The list and 3D loader scripts are fetched when the page is idle; the first previews once the customizer opens.{%- endcomment -%}
+<dialog id="modelPicker" aria-labelledby="modelPickerTitle">
+  <div class="mp-head">
+    <h2 id="modelPickerTitle">Pick a 3D design</h2>
+    <button type="button" class="mp-close" aria-label="Close" data-mp-close>&times;</button>
+  </div>
+  <div class="mp-grid" id="modelPickerGrid"><p class="mp-msg">Loading…</p></div>
+</dialog>
+<style>
+#modelPicker{width:min(560px,calc(100vw - 32px));max-height:min(640px,calc(100vh - 32px));padding:0;border:1px solid var(--line-strong);border-radius:16px;background:var(--paper);color:var(--ink)}
+#modelPicker[open]{display:flex;flex-direction:column}
+#modelPicker::backdrop{background:rgba(26,29,38,.45)}
+#modelPicker .mp-head{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid var(--line)}
+#modelPicker h2{margin:0;font-size:16px}
+#modelPicker .mp-close{font-size:24px;line-height:1;background:none;border:0;color:var(--ink);cursor:pointer;padding:4px 8px}
+#modelPicker .mp-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:10px;padding:16px;overflow:auto;min-height:0}
+#modelPicker .mp-item{position:relative;display:flex;flex-direction:column;gap:6px;padding:8px;border:1px solid var(--line);border-radius:12px;background:#fff;color:var(--ink);cursor:pointer;font:inherit;font-size:13px;text-transform:capitalize}
+#modelPicker .mp-item:hover,#modelPicker .mp-item:focus-visible{border-color:var(--accent)}
+#modelPicker .mp-item[disabled]{cursor:progress}
+#modelPicker .mp-item[disabled]:not(.is-loading){opacity:.5}
+#modelPicker .mp-item.is-loading{border-color:var(--accent)}
+#modelPicker .mp-item.is-loading::after{content:"";position:absolute;top:calc(50% - 28px);left:calc(50% - 14px);width:28px;height:28px;border:3px solid var(--line);border-top-color:var(--accent);border-radius:50%;animation:mp-spin-loader .8s linear infinite}
+@keyframes mp-spin-loader{to{transform:rotate(360deg)}}
+#modelPicker .mp-item img,#modelPicker .mp-ph,#modelPicker .mp-spin{width:100%;aspect-ratio:1;object-fit:contain;border-radius:8px;background-color:var(--bg)}
+#modelPicker .mp-ph{display:grid;place-items:center;font-size:28px;color:var(--ink-soft)}
+/* 24 frames side by side: steps(n) to n/(n-1) of the width lands exactly on each frame. */
+#modelPicker .mp-spin{background-repeat:no-repeat;background-size:calc(var(--n,24) * 100%) 100%;background-position:0 0}
+#modelPicker .mp-item:hover .mp-spin,#modelPicker .mp-item:focus-visible .mp-spin{animation:mp-turn 1.4s steps(var(--n,24)) infinite}
+@media (hover:none){#modelPicker .mp-spin.is-visible{animation:mp-turn 2.4s steps(var(--n,24)) infinite}}
+@media (prefers-reduced-motion:reduce){#modelPicker .mp-item .mp-spin,#modelPicker .mp-spin.is-visible{animation:none}#modelPicker .mp-item.is-loading::after{animation-duration:2.4s}}
+@keyframes mp-turn{to{background-position:var(--end,104.3478%) 0}}
+#modelPicker .mp-msg{grid-column:1/-1;margin:24px 0;text-align:center;color:var(--ink-soft)}
+.print-frame .mp-add,.print-frame .mp-change{position:absolute;left:50%;pointer-events:auto;cursor:pointer;font:inherit;font-weight:600;white-space:nowrap}
+.print-frame .mp-add{top:50%;transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;gap:8px;padding:6px;background:none;border:0;color:var(--accent-deep);font-size:13px}
+.print-frame .mp-add .mp-plus{display:grid;place-items:center;width:56px;height:56px;border-radius:50%;background:var(--accent);color:#fff;box-shadow:0 6px 18px rgba(36,87,255,.35);transition:transform .15s ease,background .15s ease}
+.print-frame .mp-add:hover .mp-plus,.print-frame .mp-add:focus-visible .mp-plus{transform:scale(1.08);background:var(--accent-deep)}
+.print-frame .mp-change{top:100%;transform:translateX(-50%);margin-top:10px;display:flex;align-items:center;gap:6px;padding:7px 14px;border:1px solid var(--line-strong);border-radius:999px;background:#fff;color:var(--ink);font-size:12.5px;box-shadow:0 2px 8px rgba(26,29,38,.12)}
+.print-frame .mp-change:hover,.print-frame .mp-change:focus-visible{border-color:var(--accent);color:var(--accent-deep)}
+.print-frame .mp-add[hidden],.print-frame .mp-change[hidden]{display:none}
+@media (prefers-reduced-motion:reduce){.print-frame .mp-add .mp-plus{transition:none}}
+/* Dark shirts: the print-area limit (dashed) and its snap guides turn white so they stay visible. */
+#overlay[data-tee-dark] .print-frame{border-color:#fff}
+#overlay[data-tee-dark] .print-frame::before,#overlay[data-tee-dark] .print-frame::after{background:#fff}
+#overlay[data-tee-dark] .print-frame .mp-add{color:#fff}
+#overlay[data-tee-dark] .print-frame .mp-add .mp-plus{background:#fff;color:#111;box-shadow:0 6px 18px rgba(0,0,0,.35)}
+#overlay[data-tee-dark] .print-frame .mp-add:hover .mp-plus,#overlay[data-tee-dark] .print-frame .mp-add:focus-visible .mp-plus{background:#fff}
+</style>
+<script>
+(function () {
+  var API = "https://orican-printify.vercel.app";
+  var EAGER_PREVIEWS = 12;   // previews fetched once the customizer opens; the rest load as they scroll into view
+  var DWELL_MS = 250;        // lingering this long on a card starts downloading its model
+  var LOADERS = {
+    glb: [["https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js", "sha384-fljlqkjWlmSFjkESkQvm77heIZpoWmXEOzlCA7kOpGUH+95Zk0yGfQieWM2q136E"]],
+    fbx: [["https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/libs/fflate.min.js", "sha384-z5TPRpmZ+60mv8LqyHeCA0HTTbGjLyhJPjpEb4c4mgqrdWC1zM5Sn5pSRmknOjK8"],
+          ["https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/FBXLoader.js", "sha384-2p/UEtsvNhL+wOAYuEC0nPIxmadBIxZnUrgBcwTle8Ur/abmFqGeiNvkFDHGocOM"]]
+  };
+  var dlg = document.getElementById("modelPicker"), grid = document.getElementById("modelPickerGrid");
+  var input = document.getElementById("fileInput");
+  if (!dlg || !input) return;
+  var models = null, packs = [], listing = null, files = {}, preloaded = {};
+  var preview = function (m) { return m.spin || m.thumb; };
+  var ext = function (u) { return (u || "").split("?")[0].split(".").pop().toLowerCase(); };
+
+  // Designs hosted in the theme's assets rather than the dashboard, placed ahead of the dashboard's
+  // in their event pack (the pack is created if the dashboard isn't running it). Each is unshifted
+  // in turn, so they end up in the reverse of this list: the last one comes first. `frames` is the
+  // spin strip's frame count (dashboard strips have 12 or 24). `anim` is a pure 360° rotation sheet (48 frames)
+  // for the homepage slider without any wobble or jiggle at the end.
+  function themeAnim(turn) {
+    return { turn: 48, wobble: 0, fps: 40,
+      sheets: [{ src: turn, cols: 8, from: 0, n: 48 }] };
+  }
+  var THEME_MODELS = [
+    { slug: "witch", name: "Witch", pack: "halloween", frames: 24,
+      anim: themeAnim({{ 'orican-witch-turn.webp' | asset_url | json }}),
+      turn: {{ 'orican-witch-turn.webp' | asset_url | json }},
+      model: {{ 'orican-witch.glb' | asset_url | json }}, spin: {{ 'orican-witch-spin.webp' | asset_url | json }} },
+    { slug: "cauldron", name: "Cauldron", pack: "halloween", frames: 24,
+      anim: themeAnim({{ 'orican-cauldron-turn.webp' | asset_url | json }}),
+      turn: {{ 'orican-cauldron-turn.webp' | asset_url | json }},
+      model: {{ 'orican-cauldron.glb' | asset_url | json }}, spin: {{ 'orican-cauldron-spin.webp' | asset_url | json }} },
+    { slug: "ghost", name: "Ghost", pack: "halloween", frames: 24,
+      anim: themeAnim({{ 'orican-ghost-turn.webp' | asset_url | json }}),
+      turn: {{ 'orican-ghost-turn.webp' | asset_url | json }},
+      model: {{ 'orican-ghost.glb' | asset_url | json }}, spin: {{ 'orican-ghost-spin.webp' | asset_url | json }} },
+    { slug: "pumpkin", name: "Pumpkin", pack: "halloween", frames: 24,
+      anim: themeAnim({{ 'orican-pumpkin-turn.webp' | asset_url | json }}),
+      turn: {{ 'orican-pumpkin-turn.webp' | asset_url | json }},
+      model: {{ 'orican-pumpkin.glb' | asset_url | json }}, spin: {{ 'orican-pumpkin-spin.webp' | asset_url | json }} },
+    { slug: "frankenstein", name: "Frankenstein", pack: "halloween", frames: 24,
+      anim: themeAnim({{ 'orican-frankenstein-turn.webp' | asset_url | json }}),
+      turn: {{ 'orican-frankenstein-turn.webp' | asset_url | json }},
+      model: {{ 'orican-frankenstein.glb' | asset_url | json }}, spin: {{ 'orican-frankenstein-spin.webp' | asset_url | json }} }
+  ];
+  var HIDDEN = ["yellow-robot", "yellow-minion-robot", "aa", "ab", "ac"];
+
+  function addThemeModels(d) {
+    models = (models || []).filter(function (m) { return HIDDEN.indexOf(m.slug) < 0; });
+    packs.forEach(function (p) { p.models = (p.models || []).filter(function (s) { return HIDDEN.indexOf(s) < 0; }); });
+    THEME_MODELS.forEach(function (t) {
+      if (models.some(function (m) { return m.slug === t.slug; })) return;
+      models.unshift({ slug: t.slug, name: t.name, model: t.model, mtl: null, texture: null, thumb: null, spin: t.spin, turn: t.turn, frames: t.frames || 24, anim: t.anim });
+      if (!t.pack) return;
+      var p = packs.find(function (x) { return x.name.toLowerCase() === t.pack; });
+      if (!p) { p = { id: t.pack, name: t.pack, until: null, models: [] }; packs.unshift(p); }
+      p.models.unshift(t.slug);
+    });
+    packs.forEach(function (p) { p.name = p.name.charAt(0).toUpperCase() + p.name.slice(1); });
+    if (d && !Array.isArray(d)) { d.models = models; d.packs = packs; }
+  }
+
+  var customizerOpen = false, warmed = false;
+  function warmPreviews() {
+    if (warmed || !models) return;
+    warmed = true;
+    models.forEach(function (m, i) { if (i < EAGER_PREVIEWS && preview(m)) new Image().src = preview(m); });
+  }
+
+  function useCatalogue(d) {
+    models = Array.isArray(d) ? d : (d && d.models) || [];
+    packs = (d && d.packs) || [];
+    addThemeModels(d);
+    models.forEach(function (m) {
+      if (!m.model) return;
+      (LOADERS[ext(m.model)] || []).forEach(function (l) {
+        if (preloaded[l[0]]) return;
+        preloaded[l[0]] = true;
+        var link = document.createElement("link");
+        link.rel = "preload"; link.as = "script"; link.href = l[0]; link.integrity = l[1]; link.crossOrigin = "anonymous";
+        document.head.appendChild(link);
+      });
+    });
+    if (dlg.open) render();
+    if (customizerOpen) warmPreviews();
+    return d;
+  }
+
+  function list() {
+    return listing || (listing = fetch(API + "/api/models?view=shop")
+      .then(function (r) { if (!r.ok) throw new Error("catalogue " + r.status); return r.json(); })
+      .then(useCatalogue)
+      .catch(function (e) {
+        console.warn("ORICAN catalogue unavailable, showing fallback designs", e);
+        return useCatalogue({ models: [], packs: [] });
+      }));
+  }
+
+  function file(url) {
+    return files[url] || (files[url] = fetch(url)
+      .then(function (r) { if (!r.ok) throw 0; return r.blob(); })
+      .then(function (b) { return new File([b], url.split("/").pop().split("?")[0], { type: b.type }); })
+      .catch(function (e) { delete files[url]; throw e; }));
+  }
+
+  function modelFiles(m) {
+    var urls = [m.model, m.mtl, m.texture].filter(Boolean);
+    if (!urls.length && m.thumb) urls = [m.thumb];
+    return Promise.all(urls.map(file));
+  }
+
+
+  function resolveModel(target) {
+    if (!target) return null;
+    if (typeof target === "object" && (target.model || target.thumb || target.turn || target.spin)) return target;
+    var slug = typeof target === "string" ? target : target.slug;
+    return (models || []).find(function (x) { return x.slug === slug; }) || target;
+  }
+
+  // 3D WebP Impostor: enables pre-rendered 3D WebP sprite sheets (turn.webp, spin.webp)
+  // to act as full 3D models when placed on the shirt customizer, updating frame angles on
+  // horizontal rotations, dragging, and flipping while keeping the plane facing forward.
+  var activeImpostor = null;
+  var lastCreatedMesh = null;
+
+  function hookThree() {
+    var T = window.THREE;
+    if (!T || T.__oricanImpostorHooked) return;
+    T.__oricanImpostorHooked = true;
+
+    var OrigMesh = T.Mesh;
+    T.Mesh = function (geom, mat) {
+      var mesh = new OrigMesh(geom, mat);
+      lastCreatedMesh = mesh;
+      return mesh;
+    };
+    T.Mesh.prototype = OrigMesh.prototype;
+
+    var OrigRenderer = T.WebGLRenderer;
+    if (OrigRenderer && OrigRenderer.prototype && !OrigRenderer.prototype.__oricanRenderHooked) {
+      OrigRenderer.prototype.__oricanRenderHooked = true;
+      var origRender = OrigRenderer.prototype.render;
+      OrigRenderer.prototype.render = function (scene, camera) {
+        if (activeImpostor && (activeImpostor.mesh || lastCreatedMesh)) {
+          activeImpostor.update(camera);
+        }
+        var res = origRender.apply(this, arguments);
+        if (activeImpostor && activeImpostor.mesh) {
+          activeImpostor.restore();
+        }
+        return res;
+      };
+    }
+  }
+
+  if (window.THREE) {
+    hookThree();
+  } else {
+    var _origThree = undefined;
+    try {
+      Object.defineProperty(window, "THREE", {
+        configurable: true,
+        enumerable: true,
+        get: function () { return _origThree; },
+        set: function (v) {
+          _origThree = v;
+          hookThree();
+        }
+      });
+    } catch (e) {}
+  }
+
+  function place(m) {
+    m = resolveModel(m);
+    if (!m) return Promise.reject(new Error("Design not found"));
+
+    hookThree();
+
+    // If the model has a real 3D geometry file (.glb, .fbx, .obj), place it via 3D loader
+    if (m.model) {
+      activeImpostor = null;
+      return modelFiles(m).then(function (fs) {
+        if (!fs.length) throw new Error("No files to place");
+        var dt = new DataTransfer();
+        fs.forEach(function (f) { dt.items.add(f); });
+        var targetInput = document.getElementById("fileInput") || input;
+        targetInput.files = dt.files;
+        targetInput.dispatchEvent(new Event("change", { bubbles: true }));
+      });
+    }
+
+    // WebP 3D model: render and scrub through pre-rendered angles on 3D rotations & flipping
+    var sheetUrl = m.turn || (m.anim && m.anim.sheets && m.anim.sheets[0] && m.anim.sheets[0].src) || m.spin;
+    var isTurn = !!(m.turn || (m.anim && m.anim.turn));
+    var totalFrames = (m.anim && m.anim.turn) || (isTurn ? 48 : (m.frames || 24));
+    var cols = (m.anim && m.anim.sheets && m.anim.sheets[0] && m.anim.sheets[0].cols) || (isTurn ? 8 : (m.frames || 24));
+    var rows = Math.max(1, Math.ceil(totalFrames / cols));
+
+    if (!sheetUrl) {
+      activeImpostor = null;
+      return modelFiles(m).then(function (fs) {
+        if (!fs.length) throw new Error("No files to place");
+        var dt = new DataTransfer();
+        fs.forEach(function (f) { dt.items.add(f); });
+        var targetInput = document.getElementById("textureInput") || input;
+        targetInput.files = dt.files;
+        targetInput.dispatchEvent(new Event("change", { bubbles: true }));
+      });
+    }
+
+    return new Promise(function (resolve, reject) {
+      var img = new Image();
+      img.crossOrigin = "anonymous";
+      img.onload = function () {
+        var W = img.naturalWidth || img.width;
+        var H = img.naturalHeight || img.height;
+        var fw = Math.floor(W / cols);
+        var fh = Math.floor(H / rows);
+
+        var cv = document.createElement("canvas");
+        cv.width = fw;
+        cv.height = fh;
+        var ctx = cv.getContext("2d");
+
+        // Initial frame (front angle)
+        ctx.drawImage(img, 0, 0, fw, fh, 0, 0, fw, fh);
+
+        cv.toBlob(function (blob) {
+          if (!blob) return reject(new Error("Canvas blob failed"));
+          var f = new File([blob], (m.slug || "design") + "-3d.png", { type: "image/png" });
+          var dt = new DataTransfer();
+          dt.items.add(f);
+
+          var targetInput = document.getElementById("textureInput") || input;
+          targetInput.files = dt.files;
+          targetInput.dispatchEvent(new Event("change", { bubbles: true }));
+
+          var T = window.THREE;
+          activeImpostor = {
+            slug: m.slug,
+            sheetImg: img,
+            cols: cols,
+            rows: rows,
+            totalFrames: totalFrames,
+            fw: fw,
+            fh: fh,
+            canvas: cv,
+            ctx: ctx,
+            currentFrame: 0,
+            mesh: null,
+            savedQuaternion: T ? new T.Quaternion() : null,
+            euler: T ? new T.Euler(0, 0, 0, "YXZ") : null,
+            tempEuler: T ? new T.Euler(0, 0, 0, "YXZ") : null,
+            update: function (camera) {
+              var mesh = this.mesh || lastCreatedMesh;
+              if (!mesh || !mesh.parent) return;
+              this.mesh = mesh;
+              var T = window.THREE;
+              if (!T) return;
+              if (!this.savedQuaternion) {
+                this.savedQuaternion = new T.Quaternion();
+                this.euler = new T.Euler(0, 0, 0, "YXZ");
+                this.tempEuler = new T.Euler(0, 0, 0, "YXZ");
+              }
+
+              // Preserve full 3D rotation state
+              this.savedQuaternion.copy(mesh.quaternion);
+
+              // Yaw around Y corresponds to the horizontal 3D turntable angle
+              this.euler.setFromQuaternion(mesh.quaternion, "YXZ");
+              var yaw = (this.euler.y % (2 * Math.PI) + (2 * Math.PI)) % (2 * Math.PI);
+              var frame = Math.round((yaw / (2 * Math.PI)) * this.totalFrames) % this.totalFrames;
+              if (frame < 0) frame += this.totalFrames;
+
+              // Handle horizontal flip
+              if (mesh.scale.x < 0) {
+                frame = (this.totalFrames - frame) % this.totalFrames;
+              }
+
+              // Update the displayed 3D frame from the WebP sprite sheet
+              if (frame !== this.currentFrame || (mesh.material && mesh.material.map && mesh.material.map.image !== this.canvas)) {
+                this.currentFrame = frame;
+                var col = frame % this.cols;
+                var row = Math.floor(frame / this.cols);
+                var sx = col * this.fw;
+                var sy = row * this.fh;
+                this.ctx.clearRect(0, 0, this.fw, this.fh);
+                this.ctx.drawImage(this.sheetImg, sx, sy, this.fw, this.fh, 0, 0, this.fw, this.fh);
+                if (mesh.material && mesh.material.map) {
+                  mesh.material.map.image = this.canvas;
+                  mesh.material.map.needsUpdate = true;
+                }
+              }
+
+              // Counter-rotate Y so the plane always faces forward flat on the shirt,
+              // while roll (Z) and pitch (X) tilt naturally.
+              mesh.quaternion.setFromEuler(this.tempEuler.set(this.euler.x, 0, this.euler.z, "YXZ"));
+              mesh.updateMatrix();
+              mesh.updateMatrixWorld(true);
+            },
+            restore: function () {
+              var mesh = this.mesh;
+              if (!mesh) return;
+              mesh.quaternion.copy(this.savedQuaternion);
+              mesh.updateMatrix();
+              mesh.updateMatrixWorld(true);
+            }
+          };
+
+          resolve();
+        }, "image/png");
+      };
+      img.onerror = function (err) {
+        reject(err);
+      };
+      img.src = sheetUrl;
+    });
+  }
+
+  // Shared with the homepage design slider (snippets/orican-design-slider.liquid):
+  // returns { models, packs } where each model includes anim (turn sheet) and spin strip.
+  // use(m) opens the customizer and puts that design directly on the shirt.
+  window.oricanDesigns = {
+    load: function () { return list().then(function () { return { models: models, packs: packs }; }); },
+    warm: function (m) {
+      m = resolveModel(m);
+      if (m) modelFiles(m).catch(function () {});
+    },
+    use: function (m) {
+      var open = document.getElementById("stageCustomize") || document.querySelector(".openFrame");
+      if (open) open.click();
+      return (models ? Promise.resolve() : list()).then(function () {
+        return place(m);
+      });
+    }
+  };
+
+  function msg(t) { grid.innerHTML = '<p class="mp-msg"></p>'; grid.firstChild.textContent = t; }
+
+  var seen = "IntersectionObserver" in window ? new IntersectionObserver(function (entries) {
+    entries.forEach(function (en) {
+      var el = en.target;
+      if (en.isIntersecting && el.dataset.bg) { el.style.backgroundImage = "url('" + el.dataset.bg + "')"; delete el.dataset.bg; }
+      el.classList.toggle("is-visible", en.isIntersecting);
+    });
+  }, { root: grid, rootMargin: "120px" }) : null;
+
+  function render() {
+    if (!models || !models.length) return msg("No designs in the catalogue yet.");
+    grid.innerHTML = "";
+    models.forEach(card);
+  }
+
+  function card(m, i) {
+    var b = document.createElement("button");
+    b.type = "button"; b.className = "mp-item"; b.dataset.i = i;
+    var v;
+    if (m.spin) {
+      v = document.createElement("span"); v.className = "mp-spin"; v.setAttribute("aria-hidden", "true");
+      var n = m.frames || 24;
+      v.style.setProperty("--n", n);
+      v.style.setProperty("--end", (n / (n - 1) * 100).toFixed(4) + "%");
+      if (seen) { v.dataset.bg = m.spin; seen.observe(v); } else v.style.backgroundImage = "url('" + m.spin + "')";
+    } else if (m.thumb) {
+      v = new Image(); v.src = m.thumb; v.alt = ""; v.loading = "lazy";
+    } else {
+      v = document.createElement("span"); v.className = "mp-ph"; v.textContent = "3D";
+    }
+    b.appendChild(v);
+    b.appendChild(document.createTextNode(m.name));
+    grid.appendChild(b);
+  }
+
+  (window.requestIdleCallback || function (f) { setTimeout(f, 1500); })(function () { list().catch(function () {}); }, { timeout: 4000 });
+
+  function openPicker(e) {
+    e.stopPropagation();
+    dlg.showModal();
+    if (models) return render();
+    msg("Loading…");
+    list().catch(function () { msg("Couldn't load the catalogue. Please try again."); });
+  }
+
+  var PLUS = '<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>';
+  var addBtn = document.createElement("button");
+  addBtn.type = "button"; addBtn.className = "mp-add";
+  addBtn.innerHTML = '<span class="mp-plus">' + PLUS + '</span><span>Add design</span>';
+  var changeBtn = document.createElement("button");
+  changeBtn.type = "button"; changeBtn.className = "mp-change"; changeBtn.hidden = true;
+  changeBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 0 1-15.5 6.2L3 16"/><path d="M3 21v-5h5"/><path d="M3 12a9 9 0 0 1 15.5-6.2L21 8"/><path d="M21 3v5h-5"/></svg>Change design';
+  addBtn.addEventListener("click", openPicker);
+  changeBtn.addEventListener("click", openPicker);
+
+  var view = document.querySelector(".view-3d") || document.body;
+  function attach() {
+    var frame = view.querySelector(".print-frame");
+    if (frame && addBtn.parentNode !== frame) { frame.appendChild(addBtn); frame.appendChild(changeBtn); }
+    if (frame && !customizerOpen) { customizerOpen = true; warmPreviews(); }
+  }
+  attach();
+  new MutationObserver(attach).observe(view, { childList: true, subtree: true });
+
+  var toast = document.getElementById("toastText");
+  if (toast) new MutationObserver(function () {
+    if (/^(3D design|Image) placed/.test(toast.textContent)) { addBtn.hidden = true; changeBtn.hidden = false; }
+  }).observe(toast, { childList: true, characterData: true, subtree: true });
+
+  var dwell = null;
+  function warmLater(e) {
+    var b = e.target.closest && e.target.closest(".mp-item");
+    clearTimeout(dwell);
+    if (b && models) dwell = setTimeout(function () { modelFiles(models[b.dataset.i]).catch(function () {}); }, DWELL_MS);
+  }
+  grid.addEventListener("pointerover", warmLater);
+  grid.addEventListener("focusin", warmLater);
+  grid.addEventListener("pointerdown", function (e) {
+    var b = e.target.closest(".mp-item");
+    if (b && models) modelFiles(models[b.dataset.i]).catch(function () {});
+  });
+
+  dlg.addEventListener("click", function (e) {
+    if (e.target === dlg || e.target.closest("[data-mp-close]")) return dlg.close();
+    var b = e.target.closest(".mp-item");
+    if (!b || b.disabled) return;
+    var items = grid.querySelectorAll(".mp-item");
+    items.forEach(function (x) { x.disabled = true; });
+    b.classList.add("is-loading");
+    place(models[b.dataset.i]).then(function () {
+      dlg.close();
+    }).catch(function () {
+      msg("Couldn't load that design. Please try again.");
+      models = null; listing = null;
+    }).finally(function () {
+      b.classList.remove("is-loading");
+      items.forEach(function (x) { x.disabled = false; });
+    });
+  });
+})();
+</script>
+
+<script>
+// Marks the customizer when the shirt is dark (#overlay[data-tee-dark]).
+(function () {
+  var overlay = document.getElementById("overlay");
+  if (!overlay) return;
+  function dark(c) {
+    var h = typeof c === "number" ? ("000000" + c.toString(16)).slice(-6) : String(c || "").replace("#", "");
+    if (h.length === 3) h = h.replace(/./g, "$&$&");
+    if (!/^[0-9a-f]{6}$/i.test(h)) return false;
+    var lin = function (i) { var v = parseInt(h.substr(i, 2), 16) / 255; return v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); };
+    return 0.2126 * lin(0) + 0.7152 * lin(2) + 0.0722 * lin(4) < 0.3;
+  }
+  var hex = window.__oricanTeeHex;
+  function apply() { overlay.toggleAttribute("data-tee-dark", dark(hex)); }
+  try {
+    Object.defineProperty(window, "__oricanTeeHex", { configurable: true, get: function () { return hex; }, set: function (v) { hex = v; apply(); } });
+  } catch (e) {}
+  apply();
+})();
+</script>
+

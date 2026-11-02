@@ -74,18 +74,23 @@
   var THEME_MODELS = [
     { slug: "witch", name: "Witch", pack: "halloween", frames: 24,
       anim: themeAnim({{ 'orican-witch-turn.webp' | asset_url | json }}),
+      turn: {{ 'orican-witch-turn.webp' | asset_url | json }},
       model: {{ 'orican-witch.glb' | asset_url | json }}, spin: {{ 'orican-witch-spin.webp' | asset_url | json }} },
     { slug: "cauldron", name: "Cauldron", pack: "halloween", frames: 24,
       anim: themeAnim({{ 'orican-cauldron-turn.webp' | asset_url | json }}),
+      turn: {{ 'orican-cauldron-turn.webp' | asset_url | json }},
       model: {{ 'orican-cauldron.glb' | asset_url | json }}, spin: {{ 'orican-cauldron-spin.webp' | asset_url | json }} },
     { slug: "ghost", name: "Ghost", pack: "halloween", frames: 24,
       anim: themeAnim({{ 'orican-ghost-turn.webp' | asset_url | json }}),
+      turn: {{ 'orican-ghost-turn.webp' | asset_url | json }},
       model: {{ 'orican-ghost.glb' | asset_url | json }}, spin: {{ 'orican-ghost-spin.webp' | asset_url | json }} },
     { slug: "pumpkin", name: "Pumpkin", pack: "halloween", frames: 24,
       anim: themeAnim({{ 'orican-pumpkin-turn.webp' | asset_url | json }}),
+      turn: {{ 'orican-pumpkin-turn.webp' | asset_url | json }},
       model: {{ 'orican-pumpkin.glb' | asset_url | json }}, spin: {{ 'orican-pumpkin-spin.webp' | asset_url | json }} },
     { slug: "frankenstein", name: "Frankenstein", pack: "halloween", frames: 24,
       anim: themeAnim({{ 'orican-frankenstein-turn.webp' | asset_url | json }}),
+      turn: {{ 'orican-frankenstein-turn.webp' | asset_url | json }},
       model: {{ 'orican-frankenstein.glb' | asset_url | json }}, spin: {{ 'orican-frankenstein-spin.webp' | asset_url | json }} }
   ];
   var HIDDEN = ["yellow-robot", "yellow-minion-robot", "aa", "ab", "ac"];
@@ -95,7 +100,7 @@
     packs.forEach(function (p) { p.models = (p.models || []).filter(function (s) { return HIDDEN.indexOf(s) < 0; }); });
     THEME_MODELS.forEach(function (t) {
       if (models.some(function (m) { return m.slug === t.slug; })) return;
-      models.unshift({ slug: t.slug, name: t.name, model: t.model, mtl: null, texture: null, thumb: null, spin: t.spin, frames: t.frames || 24, anim: t.anim });
+      models.unshift({ slug: t.slug, name: t.name, model: t.model, mtl: null, texture: null, thumb: null, spin: t.spin, turn: t.turn, frames: t.frames || 24, anim: t.anim });
       if (!t.pack) return;
       var p = packs.find(function (x) { return x.name.toLowerCase() === t.pack; });
       if (!p) { p = { id: t.pack, name: t.pack, until: null, models: [] }; packs.unshift(p); }
@@ -154,28 +159,216 @@
     return Promise.all(urls.map(file));
   }
 
+
   function resolveModel(target) {
     if (!target) return null;
-    if (typeof target === "object" && (target.model || target.thumb)) return target;
+    if (typeof target === "object" && (target.model || target.thumb || target.turn || target.spin)) return target;
     var slug = typeof target === "string" ? target : target.slug;
     return (models || []).find(function (x) { return x.slug === slug; }) || target;
+  }
+
+  // 3D WebP Impostor: enables pre-rendered 3D WebP sprite sheets (turn.webp, spin.webp)
+  // to act as full 3D models when placed on the shirt customizer, updating frame angles on
+  // horizontal rotations, dragging, and flipping while keeping the plane facing forward.
+  var activeImpostor = null;
+  var lastCreatedMesh = null;
+
+  function hookThree() {
+    var T = window.THREE;
+    if (!T || T.__oricanImpostorHooked) return;
+    T.__oricanImpostorHooked = true;
+
+    var OrigMesh = T.Mesh;
+    T.Mesh = function (geom, mat) {
+      var mesh = new OrigMesh(geom, mat);
+      lastCreatedMesh = mesh;
+      return mesh;
+    };
+    T.Mesh.prototype = OrigMesh.prototype;
+
+    var OrigRenderer = T.WebGLRenderer;
+    if (OrigRenderer && OrigRenderer.prototype && !OrigRenderer.prototype.__oricanRenderHooked) {
+      OrigRenderer.prototype.__oricanRenderHooked = true;
+      var origRender = OrigRenderer.prototype.render;
+      OrigRenderer.prototype.render = function (scene, camera) {
+        if (activeImpostor && (activeImpostor.mesh || lastCreatedMesh)) {
+          activeImpostor.update(camera);
+        }
+        var res = origRender.apply(this, arguments);
+        if (activeImpostor && activeImpostor.mesh) {
+          activeImpostor.restore();
+        }
+        return res;
+      };
+    }
+  }
+
+  if (window.THREE) {
+    hookThree();
+  } else {
+    var _origThree = undefined;
+    try {
+      Object.defineProperty(window, "THREE", {
+        configurable: true,
+        enumerable: true,
+        get: function () { return _origThree; },
+        set: function (v) {
+          _origThree = v;
+          hookThree();
+        }
+      });
+    } catch (e) {}
   }
 
   function place(m) {
     m = resolveModel(m);
     if (!m) return Promise.reject(new Error("Design not found"));
-    return modelFiles(m).then(function (fs) {
-      if (!fs.length) throw new Error("No files to place");
-      var dt = new DataTransfer();
-      fs.forEach(function (f) { dt.items.add(f); });
-      var targetInput = m.model ? (document.getElementById("fileInput") || input) : (document.getElementById("textureInput") || input);
-      targetInput.files = dt.files;
-      targetInput.dispatchEvent(new Event("change", { bubbles: true }));
+
+    hookThree();
+
+    // If the model has a real 3D geometry file (.glb, .fbx, .obj), place it via 3D loader
+    if (m.model) {
+      activeImpostor = null;
+      return modelFiles(m).then(function (fs) {
+        if (!fs.length) throw new Error("No files to place");
+        var dt = new DataTransfer();
+        fs.forEach(function (f) { dt.items.add(f); });
+        var targetInput = document.getElementById("fileInput") || input;
+        targetInput.files = dt.files;
+        targetInput.dispatchEvent(new Event("change", { bubbles: true }));
+      });
+    }
+
+    // WebP 3D model: render and scrub through pre-rendered angles on 3D rotations & flipping
+    var sheetUrl = m.turn || (m.anim && m.anim.sheets && m.anim.sheets[0] && m.anim.sheets[0].src) || m.spin;
+    var isTurn = !!(m.turn || (m.anim && m.anim.turn));
+    var totalFrames = (m.anim && m.anim.turn) || (isTurn ? 48 : (m.frames || 24));
+    var cols = (m.anim && m.anim.sheets && m.anim.sheets[0] && m.anim.sheets[0].cols) || (isTurn ? 8 : (m.frames || 24));
+    var rows = Math.max(1, Math.ceil(totalFrames / cols));
+
+    if (!sheetUrl) {
+      activeImpostor = null;
+      return modelFiles(m).then(function (fs) {
+        if (!fs.length) throw new Error("No files to place");
+        var dt = new DataTransfer();
+        fs.forEach(function (f) { dt.items.add(f); });
+        var targetInput = document.getElementById("textureInput") || input;
+        targetInput.files = dt.files;
+        targetInput.dispatchEvent(new Event("change", { bubbles: true }));
+      });
+    }
+
+    return new Promise(function (resolve, reject) {
+      var img = new Image();
+      img.crossOrigin = "anonymous";
+      img.onload = function () {
+        var W = img.naturalWidth || img.width;
+        var H = img.naturalHeight || img.height;
+        var fw = Math.floor(W / cols);
+        var fh = Math.floor(H / rows);
+
+        var cv = document.createElement("canvas");
+        cv.width = fw;
+        cv.height = fh;
+        var ctx = cv.getContext("2d");
+
+        // Initial frame (front angle)
+        ctx.drawImage(img, 0, 0, fw, fh, 0, 0, fw, fh);
+
+        cv.toBlob(function (blob) {
+          if (!blob) return reject(new Error("Canvas blob failed"));
+          var f = new File([blob], (m.slug || "design") + "-3d.png", { type: "image/png" });
+          var dt = new DataTransfer();
+          dt.items.add(f);
+
+          var targetInput = document.getElementById("textureInput") || input;
+          targetInput.files = dt.files;
+          targetInput.dispatchEvent(new Event("change", { bubbles: true }));
+
+          var T = window.THREE;
+          activeImpostor = {
+            slug: m.slug,
+            sheetImg: img,
+            cols: cols,
+            rows: rows,
+            totalFrames: totalFrames,
+            fw: fw,
+            fh: fh,
+            canvas: cv,
+            ctx: ctx,
+            currentFrame: 0,
+            mesh: null,
+            savedQuaternion: T ? new T.Quaternion() : null,
+            euler: T ? new T.Euler(0, 0, 0, "YXZ") : null,
+            tempEuler: T ? new T.Euler(0, 0, 0, "YXZ") : null,
+            update: function (camera) {
+              var mesh = this.mesh || lastCreatedMesh;
+              if (!mesh || !mesh.parent) return;
+              this.mesh = mesh;
+              var T = window.THREE;
+              if (!T) return;
+              if (!this.savedQuaternion) {
+                this.savedQuaternion = new T.Quaternion();
+                this.euler = new T.Euler(0, 0, 0, "YXZ");
+                this.tempEuler = new T.Euler(0, 0, 0, "YXZ");
+              }
+
+              // Preserve full 3D rotation state
+              this.savedQuaternion.copy(mesh.quaternion);
+
+              // Yaw around Y corresponds to the horizontal 3D turntable angle
+              this.euler.setFromQuaternion(mesh.quaternion, "YXZ");
+              var yaw = (this.euler.y % (2 * Math.PI) + (2 * Math.PI)) % (2 * Math.PI);
+              var frame = Math.round((yaw / (2 * Math.PI)) * this.totalFrames) % this.totalFrames;
+              if (frame < 0) frame += this.totalFrames;
+
+              // Handle horizontal flip
+              if (mesh.scale.x < 0) {
+                frame = (this.totalFrames - frame) % this.totalFrames;
+              }
+
+              // Update the displayed 3D frame from the WebP sprite sheet
+              if (frame !== this.currentFrame || (mesh.material && mesh.material.map && mesh.material.map.image !== this.canvas)) {
+                this.currentFrame = frame;
+                var col = frame % this.cols;
+                var row = Math.floor(frame / this.cols);
+                var sx = col * this.fw;
+                var sy = row * this.fh;
+                this.ctx.clearRect(0, 0, this.fw, this.fh);
+                this.ctx.drawImage(this.sheetImg, sx, sy, this.fw, this.fh, 0, 0, this.fw, this.fh);
+                if (mesh.material && mesh.material.map) {
+                  mesh.material.map.image = this.canvas;
+                  mesh.material.map.needsUpdate = true;
+                }
+              }
+
+              // Counter-rotate Y so the plane always faces forward flat on the shirt,
+              // while roll (Z) and pitch (X) tilt naturally.
+              mesh.quaternion.setFromEuler(this.tempEuler.set(this.euler.x, 0, this.euler.z, "YXZ"));
+              mesh.updateMatrix();
+              mesh.updateMatrixWorld(true);
+            },
+            restore: function () {
+              var mesh = this.mesh;
+              if (!mesh) return;
+              mesh.quaternion.copy(this.savedQuaternion);
+              mesh.updateMatrix();
+              mesh.updateMatrixWorld(true);
+            }
+          };
+
+          resolve();
+        }, "image/png");
+      };
+      img.onerror = function (err) {
+        reject(err);
+      };
+      img.src = sheetUrl;
     });
   }
 
   // Shared with the homepage design slider (snippets/orican-design-slider.liquid):
-  // returns { models, packs } where each model includes anim (turn + wob sheets) and spin strip.
+  // returns { models, packs } where each model includes anim (turn sheet) and spin strip.
   // use(m) opens the customizer and puts that design directly on the shirt.
   window.oricanDesigns = {
     load: function () { return list().then(function () { return { models: models, packs: packs }; }); },
