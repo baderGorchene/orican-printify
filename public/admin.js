@@ -289,7 +289,7 @@
   // it shows spin.webp, a strip of SPIN_FRAMES pre-rendered angles.
   const MODEL_WARN_BYTES = 10 * 1024 * 1024;
   const MAX_TEXTURE = 2048;
-  const SPIN_FRAMES = 12;
+  const SPIN_FRAMES = 24;
   const SPIN_SIZE = 512; // sharp enough for the homepage slider's large cards (~150 KB per model)
   const fmtSize = (b) => `${(b / 1048576).toFixed(1)} MB`;
 
@@ -325,8 +325,8 @@
             </div>
             <div class="model-actions">
               ${m.spin
-                ? `<button class="btn btn-sm" data-optimize-model="${m.slug}" title="Render the 360° preview again (e.g. at the current, sharper size)">Re-render</button>`
-                : `<button class="btn btn-sm btn-primary" data-optimize-model="${m.slug}">Optimize</button>`}
+                ? `<button class="btn btn-sm" data-optimize-model="${m.slug}" title="Render WebP sheets again">Re-render</button>`
+                : `<button class="btn btn-sm btn-primary" data-optimize-model="${m.slug}">Render WebP</button>`}
               <button class="btn btn-sm" data-schedule-model="${m.slug}">Schedule</button>
               <button class="btn btn-sm btn-danger" data-delete-model="${m.slug}">Delete</button>
             </div>
@@ -349,7 +349,7 @@
     const todo = models.filter(m => !m.spin).length;
     set('statModels', models.length, `${models.filter(live).length} visible now`);
     set('statPacks', state.packs.length, `${state.packs.filter(live).length} live now`);
-    set('statOptimize', todo, todo ? 'No 360° preview yet' : 'All optimized');
+    set('statOptimize', todo, todo ? 'No WebP previews yet' : 'All ready');
     set('statSize', fmtSize(models.reduce((n, m) => n + (m.size || 0), 0)), `${models.filter(m => m.size > MODEL_WARN_BYTES).length} over ${MODEL_WARN_BYTES / 1048576} MB`);
     document.getElementById('statOptimize').closest('.tile').classList.toggle('alert', todo > 0);
   }
@@ -422,91 +422,89 @@
     return obj;
   }
 
-  // GLTFExporter (r128) only writes Float32/Uint32/Uint16/Uint8 plain attributes. Quantized
-  // (KHR_mesh_quantization / meshopt: Int8, Int16, normalized) and interleaved attributes make it
-  // throw "Unsupported bufferAttribute component type", so unpack them to Float32 first.
-  // r128's getX() returns raw stored values (no denormalize), so normalized ints are scaled by hand.
-  const NORM = new Map([[Int8Array, 127], [Uint8Array, 255], [Int16Array, 32767], [Uint16Array, 65535], [Int32Array, 2147483647], [Uint32Array, 4294967295]]);
-  function toFloatAttribute(attr) {
-    const { count, itemSize } = attr;
-    const raw = attr.isInterleavedBufferAttribute ? attr.data.array : attr.array;
-    const stride = attr.isInterleavedBufferAttribute ? attr.data.stride : itemSize;
-    const offset = attr.isInterleavedBufferAttribute ? attr.offset : 0;
-    const max = attr.normalized ? NORM.get(raw.constructor) : 0;
-    const out = new Float32Array(count * itemSize);
-    for (let i = 0; i < count; i++) {
-      for (let j = 0; j < itemSize; j++) {
-        const v = raw[i * stride + offset + j];
-        out[i * itemSize + j] = max ? Math.max(v / max, -1) : v;
-      }
-    }
-    return new THREE.BufferAttribute(out, itemSize, false);
-  }
-  const exportable = (attr) => !attr.isInterleavedBufferAttribute && attr.array instanceof Float32Array;
-
-  function sanitizeForExport(obj) {
-    obj.traverse((node) => {
-      const geom = node.geometry;
-      if (!geom || !geom.attributes) return;
-      for (const [name, attr] of Object.entries(geom.attributes)) {
-        if (name === 'skinIndex') {
-          // JOINTS_0 must stay integer
-          if (attr.isInterleavedBufferAttribute || !(attr.array instanceof Uint16Array || attr.array instanceof Uint8Array)) {
-            geom.setAttribute(name, new THREE.BufferAttribute(Uint16Array.from(toFloatAttribute(attr).array), attr.itemSize));
-          }
-        } else if (!exportable(attr)) {
-          geom.setAttribute(name, toFloatAttribute(attr));
-        }
-      }
-      for (const [name, list] of Object.entries(geom.morphAttributes || {})) {
-        geom.morphAttributes[name] = list.map((a) => (exportable(a) ? a : toFloatAttribute(a)));
-      }
-      if (geom.index && !(geom.index.array instanceof Uint16Array || geom.index.array instanceof Uint32Array)) {
-        geom.setIndex(new THREE.BufferAttribute(Uint32Array.from(geom.index.array), 1));
-      }
-    });
-  }
-
-  const exportGlb = (obj) => new Promise((ok, fail) => {
-    try {
-      sanitizeForExport(obj);
-      new THREE.GLTFExporter().parse(obj, ok, { binary: true, maxTextureSize: MAX_TEXTURE });
-    } catch (err) { fail(err); }
-  });
-
-  // SPIN_FRAMES views around the Y axis side by side in one WebP, played by the picker with CSS steps().
-  async function renderSpin(obj) {
+  // Generate the 3 lightweight WebP spritesheets from the loaded 3D scene:
+  // 1. spin.webp: 24 frames horizontal strip (1024x42), 360° turn for picker card preview
+  // 2. turn.webp: 48 frames sheet (1024x768, 8 cols x 6 rows, 128x128 px), full 360° turn
+  // 3. wob.webp:  32 frames sheet (1024x512, 8 cols x 4 rows, 128x128 px), wobble/tilt animation
+  async function renderModelSheets(obj) {
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
-    const strip = document.createElement('canvas');
-    strip.width = SPIN_SIZE * SPIN_FRAMES;
-    strip.height = SPIN_SIZE;
-    const ctx = strip.getContext('2d');
+    renderer.outputEncoding = THREE.sRGBEncoding;
+
+    const scene = new THREE.Scene();
+    scene.add(new THREE.AmbientLight(0xffffff, 0.75));
+    const sun = new THREE.DirectionalLight(0xffffff, 0.9);
+    sun.position.set(2, 3, 4);
     const pivot = new THREE.Group();
+    scene.add(sun, pivot);
     const parent = obj.parent;
+    pivot.add(obj);
+
+    // Center the model on the pivot and frame its bounding sphere so it stays in frame
+    const sphere = new THREE.Box3().setFromObject(obj).getBoundingSphere(new THREE.Sphere());
+    const offset = sphere.center.clone();
+    obj.position.sub(offset);
+    const dist = (sphere.radius || 1) / Math.sin(THREE.MathUtils.degToRad(16)) * 1.05;
+    const camera = new THREE.PerspectiveCamera(32, 1, dist / 100, dist * 10);
+    camera.position.set(0, 0, dist);
+
     try {
-      renderer.setSize(SPIN_SIZE, SPIN_SIZE);
-      renderer.outputEncoding = THREE.sRGBEncoding;
-      const scene = new THREE.Scene();
-      scene.add(new THREE.AmbientLight(0xffffff, 0.75));
-      const sun = new THREE.DirectionalLight(0xffffff, 0.9);
-      sun.position.set(2, 3, 4);
-      scene.add(sun, pivot);
-      pivot.add(obj);
-      // Center the model on the pivot and frame its bounding sphere so it never leaves the frame.
-      const sphere = new THREE.Box3().setFromObject(obj).getBoundingSphere(new THREE.Sphere());
-      const offset = sphere.center.clone();
-      obj.position.sub(offset);
-      const dist = (sphere.radius || 1) / Math.sin(THREE.MathUtils.degToRad(16)) * 1.05;
-      const camera = new THREE.PerspectiveCamera(32, 1, dist / 100, dist * 10);
-      camera.position.set(0, 0, dist);
-      for (let i = 0; i < SPIN_FRAMES; i++) {
-        pivot.rotation.y = (i / SPIN_FRAMES) * Math.PI * 2;
+      renderer.setSize(128, 128);
+
+      // 1. spin.webp: 24 frames horizontal strip (1024 x 42)
+      const spinCanvas = document.createElement('canvas');
+      spinCanvas.width = 1024;
+      spinCanvas.height = 42;
+      const spinCtx = spinCanvas.getContext('2d');
+      const stepW = 1024 / 24;
+      for (let i = 0; i < 24; i++) {
+        pivot.rotation.set(0, (i / 24) * Math.PI * 2, 0);
         renderer.render(scene, camera);
-        ctx.drawImage(renderer.domElement, i * SPIN_SIZE, 0);
+        spinCtx.drawImage(renderer.domElement, i * stepW, 0, stepW, 42);
       }
-      obj.position.add(offset);
-      return await new Promise((ok, fail) => strip.toBlob(b => b ? ok(b) : fail(new Error('Preview render failed')), 'image/webp', 0.82));
+      const spinBlob = await new Promise((ok, fail) =>
+        spinCanvas.toBlob(b => b ? ok(b) : fail(new Error('spin render failed')), 'image/webp', 0.82)
+      );
+
+      // 2. turn.webp: 48 frames spritesheet (1024 x 768, 8 cols x 6 rows)
+      const turnCanvas = document.createElement('canvas');
+      turnCanvas.width = 1024;
+      turnCanvas.height = 768;
+      const turnCtx = turnCanvas.getContext('2d');
+      for (let i = 0; i < 48; i++) {
+        const col = i % 8;
+        const row = Math.floor(i / 8);
+        pivot.rotation.set(0, (i / 48) * Math.PI * 2, 0);
+        renderer.render(scene, camera);
+        turnCtx.drawImage(renderer.domElement, col * 128, row * 128, 128, 128);
+      }
+      const turnBlob = await new Promise((ok, fail) =>
+        turnCanvas.toBlob(b => b ? ok(b) : fail(new Error('turn render failed')), 'image/webp', 0.82)
+      );
+
+      // 3. wob.webp: 32 frames spritesheet (1024 x 512, 8 cols x 4 rows)
+      const wobCanvas = document.createElement('canvas');
+      wobCanvas.width = 1024;
+      wobCanvas.height = 512;
+      const wobCtx = wobCanvas.getContext('2d');
+      for (let i = 0; i < 32; i++) {
+        const col = i % 8;
+        const row = Math.floor(i / 8);
+        const progress = (i / 32) * Math.PI * 2;
+        pivot.rotation.set(
+          Math.sin(progress) * 0.08,
+          0,
+          Math.sin(progress) * 0.18
+        );
+        renderer.render(scene, camera);
+        wobCtx.drawImage(renderer.domElement, col * 128, row * 128, 128, 128);
+      }
+      const wobBlob = await new Promise((ok, fail) =>
+        wobCanvas.toBlob(b => b ? ok(b) : fail(new Error('wob render failed')), 'image/webp', 0.82)
+      );
+
+      return { spinBlob, turnBlob, wobBlob };
     } finally {
+      obj.position.add(offset);
       pivot.remove(obj);
       if (parent) parent.add(obj);
       renderer.dispose();
@@ -515,25 +513,25 @@
   }
 
   // model (+ optional mtl/texture/thumb Files) -> [[Blob, publishedName]] ready to upload.
+  // Preserves the original 3D model and generates the 3 WebP spritesheets for instant, lightweight playback.
   async function optimizeModel(model, mtl, texture, thumb, setStatus) {
-    setStatus('Optimizing…');
+    setStatus('Loading 3D model…');
     const parts = [];
     try {
       const obj = await loadObject(model, texture);
-      setStatus('Rendering preview…');
-      parts.push([await renderSpin(obj), 'spin.webp']);
-      setStatus('Compressing…');
-      const glb = new Blob([await exportGlb(obj)], { type: 'model/gltf-binary' });
-      // An already-lean GLB can come out bigger after re-encoding; keep whichever is smaller.
-      parts.push(extOf(model) === 'glb' && glb.size >= model.size ? [model, 'model.glb'] : [glb, 'model.glb']);
+      setStatus('Rendering WebP sheets…');
+      const { spinBlob, turnBlob, wobBlob } = await renderModelSheets(obj);
+      parts.push([spinBlob, 'spin.webp']);
+      parts.push([turnBlob, 'turn.webp']);
+      parts.push([wobBlob, 'wob.webp']);
     } catch (err) {
-      // Exotic files the exporter can't handle still work, just unoptimized.
-      showToast(`Couldn't optimize (${err.message}); uploading the original files.`, 'error');
-      parts.length = 0;
-      parts.push([model, `model.${extOf(model)}`]);
-      if (mtl) parts.push([mtl, 'model.mtl']);
-      if (texture) parts.push([texture, `texture.${extOf(texture).replace('jpeg', 'jpg')}`]);
+      console.warn('WebP sheet rendering failed:', err);
+      showToast(`Warning: WebP preview rendering failed (${err.message})`, 'error');
     }
+    // Upload original model directly to R2
+    parts.push([model, `model.${extOf(model)}`]);
+    if (mtl) parts.push([mtl, 'model.mtl']);
+    if (texture) parts.push([texture, `texture.${extOf(texture).replace('jpeg', 'jpg')}`]);
     if (thumb) parts.push([thumb, `thumb.${extOf(thumb).replace('jpeg', 'jpg')}`]);
     return parts;
   }
@@ -616,8 +614,9 @@
       setStatus('Downloading…');
       const asFile = async (url) => {
         const r = await fetch(url);
-        if (!r.ok) throw new Error(`HTTP ${r.status} for ${url.split('/').pop()}`);
-        return new File([await r.blob()], url.split('/').pop());
+        if (!r.ok) throw new Error(`HTTP ${r.status} for ${url}`);
+        const filename = new URL(url, location.href).searchParams.get('file')?.split('/').pop() || url.split('/').pop().split('?')[0];
+        return new File([await r.blob()], filename);
       };
       const [model, mtl, texture] = await Promise.all([m.model, m.mtl, m.texture].map(u => u ? asFile(u) : null));
       const parts = await optimizeModel(model, mtl, texture, null, setStatus);
@@ -628,7 +627,7 @@
     } catch (err) {
       showToast(`Optimize failed: ${err.message}`, 'error');
       btn.disabled = false;
-      btn.textContent = m.spin ? 'Re-render' : 'Optimize';
+      btn.textContent = m.spin ? 'Re-render' : 'Render WebP';
     }
   }
 

@@ -18,7 +18,7 @@ const { readJsonFromR2, readBufferFromR2, uploadToR2, listFromR2, deleteFromR2, 
 const { isAdmin } = require("../lib/printify");
 
 const SLUG = /^[a-z0-9][a-z0-9-]{0,60}$/;
-const PATH = /^models\/([a-z0-9][a-z0-9-]{0,60})\/(?:model(?:-[A-Za-z0-9]+)?\.(glb|obj|fbx|mtl)|(texture|thumb|spin)(?:-[A-Za-z0-9]+)?\.(png|jpe?g|webp))$/;
+const PATH = /^models\/([a-z0-9][a-z0-9-]{0,60})\/(?:model(?:-[A-Za-z0-9]+)?\.(glb|obj|fbx|mtl)|(texture|thumb|spin|turn|wob)(?:-[A-Za-z0-9]+)?\.(png|jpe?g|webp))$/;
 const DOWNLOADED = ["model", "mtl", "texture"];
 const CONFIG = "config/catalog";
 const EMPTY = () => ({ models: {}, packs: [] });
@@ -37,16 +37,33 @@ function group(blobs) {
   return Object.values(by)
     .filter((e) => e.files.model)
     .sort((a, b) => b.files.model.at - a.files.model.at)
-    .map(({ slug, files }) => ({
-      slug,
-      name: slug.replace(/-/g, " "),
-      model: files.model.url,
-      mtl: files.mtl ? files.mtl.url : null,
-      texture: files.texture ? files.texture.url : null,
-      thumb: files.thumb ? files.thumb.url : null,
-      spin: files.spin ? files.spin.url : null,
-      size: DOWNLOADED.reduce((n, k) => n + (files[k] ? files[k].size : 0), 0),
-    }));
+    .map(({ slug, files }) => {
+      const turn = files.turn ? files.turn.url : null;
+      const wob = files.wob ? files.wob.url : null;
+      const anim = (turn && wob) ? {
+        turn: 48,
+        wobble: 32,
+        fps: 40,
+        sheets: [
+          { src: turn, cols: 8, from: 0, n: 48 },
+          { src: wob, cols: 8, from: 48, n: 32 }
+        ]
+      } : null;
+      return {
+        slug,
+        name: slug.replace(/-/g, " "),
+        model: files.model.url,
+        mtl: files.mtl ? files.mtl.url : null,
+        texture: files.texture ? files.texture.url : null,
+        thumb: files.thumb ? files.thumb.url : null,
+        spin: files.spin ? files.spin.url : null,
+        turn,
+        wob,
+        frames: 24,
+        anim,
+        size: DOWNLOADED.reduce((n, k) => n + (files[k] ? files[k].size : 0), 0),
+      };
+    });
 }
 
 // Inside an optional [from, until) window.
@@ -240,16 +257,31 @@ if (require.main === module) {
     // re-upload: the newer model and spin win
     { pathname: "models/skull/model-AbC123xyz.glb", url: "u8", uploadedAt: "2026-04-01", size: 30 },
     { pathname: "models/skull/spin-Q9w8E7.webp", url: "u9", uploadedAt: "2026-04-01", size: 5 },
+    { pathname: "models/skull/turn.webp", url: "u10", uploadedAt: "2026-04-01", size: 50 },
+    { pathname: "models/skull/wob.webp", url: "u11", uploadedAt: "2026-04-01", size: 40 },
   ];
   const g = group(blobs);
   assert.deepStrictEqual(g.map((e) => e.slug), ["skull", "rose"]);
-  assert.deepStrictEqual(g[1], { slug: "rose", name: "rose", model: "u3", mtl: "u4", texture: "u5", thumb: null, spin: null, size: 0 });
+  assert.deepStrictEqual(g[1], { slug: "rose", name: "rose", model: "u3", mtl: "u4", texture: "u5", thumb: null, spin: null, turn: null, wob: null, frames: 24, anim: null, size: 0 });
   assert.strictEqual(g[0].model, "u8");
   assert.strictEqual(g[0].spin, "u9");
+  assert.strictEqual(g[0].turn, "u10");
+  assert.strictEqual(g[0].wob, "u11");
+  assert.strictEqual(g[0].frames, 24);
+  assert.deepStrictEqual(g[0].anim, {
+    turn: 48,
+    wobble: 32,
+    fps: 40,
+    sheets: [
+      { src: "u10", cols: 8, from: 0, n: 48 },
+      { src: "u11", cols: 8, from: 48, n: 32 }
+    ]
+  });
   assert.strictEqual(g[0].thumb, "u2");
   assert.strictEqual(g[0].size, 30); // only the current model counts; thumb/spin are not downloaded on pick
   assert(!PATH.test("models/x/model.exe") && !PATH.test("designs/x.png") && !PATH.test("models/X/model.glb"));
   assert(!PATH.test("models/x/model-a/b.glb") && !PATH.test("models/x/spin.glb"));
+  assert(PATH.test("models/doggo/turn.webp") && PATH.test("models/doggo/wob.webp") && PATH.test("models/doggo/spin.webp"));
 
   // Schedules and packs
   const cfg = validate({

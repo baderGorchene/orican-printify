@@ -156,10 +156,10 @@ kbd {
 }
 .model-card:hover { transform: translateY(-2px); box-shadow: 0 14px 30px -16px rgba(15, 18, 24, 0.35); }
 .model-preview { aspect-ratio: 1; background-color: var(--sunken); background-repeat: no-repeat; background-position: 0 0; }
-.model-preview.spin { background-size: 1200% 100%; }
-/* 12 frames side by side: steps(12) to 12/11 of the width lands exactly on each frame. */
-.model-card:hover .model-preview.spin { animation: turn 1.4s steps(12) infinite; }
-@keyframes turn { to { background-position: 109.0909% 0; } }
+.model-preview.spin { background-size: 2400% 100%; }
+/* 24 frames side by side: steps(24) to 24/23 of the width lands exactly on each frame. */
+.model-card:hover .model-preview.spin { animation: turn 1.4s steps(24) infinite; }
+@keyframes turn { to { background-position: 104.3478% 0; } }
 .model-preview.still { background-size: contain; background-position: center; }
 .model-preview.none { display: grid; place-items: center; color: var(--muted); font-weight: 800; font-size: 18px; }
 .model-body { display: flex; flex-direction: column; gap: 8px; padding: 14px; }
