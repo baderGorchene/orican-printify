@@ -9,21 +9,47 @@ const crypto = require("crypto");
 const { waitUntil } = require("@vercel/functions");
 const { sendToPrintify, logRun } = require("../lib/orders");
 
+// Disable Vercel's automatic body parser so we receive the raw, untampered stream for HMAC
+module.exports.config = {
+  api: {
+    bodyParser: false,
+  },
+};
+
 function readRaw(req) {
+  if (Buffer.isBuffer(req.body)) return Promise.resolve(req.body);
+  if (typeof req.body === "string") return Promise.resolve(Buffer.from(req.body, "utf8"));
   return new Promise((resolve, reject) => {
     const chunks = [];
     req.on("data", (c) => chunks.push(c));
-    req.on("end", () => resolve(Buffer.concat(chunks)));
+    req.on("end", () => {
+      const buf = Buffer.concat(chunks);
+      // Fallback: if stream was empty but req.body was pre-parsed by middleware
+      if (buf.length === 0 && req.body && typeof req.body === "object") {
+        return resolve(Buffer.from(JSON.stringify(req.body), "utf8"));
+      }
+      resolve(buf);
+    });
     req.on("error", reject);
   });
 }
 
-function validHmac(raw, header) {
-  const secret = process.env.SHOPIFY_WEBHOOK_SECRET;
-  if (!secret || !header) return false;
+function verifyHmac(raw, header) {
+  const secret = (process.env.SHOPIFY_WEBHOOK_SECRET || "").trim();
+  if (!secret || !header) {
+    return { valid: false, reason: !secret ? "secret missing" : "header missing" };
+  }
   const digest = crypto.createHmac("sha256", secret).update(raw).digest("base64");
-  const a = Buffer.from(digest), b = Buffer.from(String(header));
-  return a.length === b.length && crypto.timingSafeEqual(a, b);
+  const a = Buffer.from(digest);
+  const b = Buffer.from(String(header).trim());
+  const valid = a.length === b.length && crypto.timingSafeEqual(a, b);
+  return {
+    valid,
+    digest,
+    header: String(header).trim(),
+    rawBytes: raw.length,
+    secretLen: secret.length,
+  };
 }
 
 module.exports = async (req, res) => {
@@ -35,9 +61,18 @@ module.exports = async (req, res) => {
 
   if (req.method !== "POST") return res.status(405).end();
   const raw = await readRaw(req);
-  if (!validHmac(raw, req.headers["x-shopify-hmac-sha256"])) {
-    console.error("[Webhook] HMAC verification failed. SHOPIFY_WEBHOOK_SECRET set:", !!process.env.SHOPIFY_WEBHOOK_SECRET);
-    waitUntil(logRun({ source: "webhook", error: "bad signature", secret_set: !!process.env.SHOPIFY_WEBHOOK_SECRET }));
+  const check = verifyHmac(raw, req.headers["x-shopify-hmac-sha256"]);
+
+  if (!check.valid) {
+    console.error("[Webhook] HMAC verification failed:", {
+      rawBytes: check.rawBytes,
+      secretSet: !!process.env.SHOPIFY_WEBHOOK_SECRET,
+      secretLength: check.secretLen || 0,
+      receivedHmac: check.header || null,
+      computedHmac: check.digest || null,
+      reason: check.reason || "signature mismatch",
+    });
+    waitUntil(logRun({ source: "webhook", error: "bad signature", details: check }));
     return res.status(401).json({ error: "bad signature" });
   }
 
