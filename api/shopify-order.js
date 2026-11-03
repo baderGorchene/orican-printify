@@ -27,21 +27,41 @@ function validHmac(raw, header) {
 }
 
 module.exports = async (req, res) => {
+  console.log(`[Webhook] ${req.method} /api/shopify-order received`, {
+    topic: req.headers["x-shopify-topic"] || null,
+    shop: req.headers["x-shopify-shop-domain"] || null,
+    hasHmac: !!req.headers["x-shopify-hmac-sha256"],
+  });
+
   if (req.method !== "POST") return res.status(405).end();
   const raw = await readRaw(req);
   if (!validHmac(raw, req.headers["x-shopify-hmac-sha256"])) {
+    console.error("[Webhook] HMAC verification failed. SHOPIFY_WEBHOOK_SECRET set:", !!process.env.SHOPIFY_WEBHOOK_SECRET);
     waitUntil(logRun({ source: "webhook", error: "bad signature", secret_set: !!process.env.SHOPIFY_WEBHOOK_SECRET }));
     return res.status(401).json({ error: "bad signature" });
   }
 
   let order;
-  try { order = JSON.parse(raw.toString("utf8")); } catch { return res.status(400).json({ error: "bad json" }); }
+  try {
+    order = JSON.parse(raw.toString("utf8"));
+  } catch (err) {
+    console.error("[Webhook] Failed to parse JSON body:", err.message);
+    return res.status(400).json({ error: "bad json" });
+  }
+
+  console.log(`[Webhook] Order ${order.name || order.id} verified. Line items count: ${order.line_items?.length || 0}`);
 
   // Answer Shopify within its 5 s window; do the Printify work after responding.
   waitUntil(
     sendToPrintify(order)
-      .then((r) => logRun({ source: "webhook", order: order.name, ...r }))
-      .catch((e) => logRun({ source: "webhook", order: order.name, error: String(e.message || e) }))
+      .then((r) => {
+        console.log(`[Webhook] Printify order processed for ${order.name}:`, r);
+        return logRun({ source: "webhook", order: order.name, ...r });
+      })
+      .catch((e) => {
+        console.error(`[Webhook] Error sending to Printify for ${order.name}:`, e);
+        return logRun({ source: "webhook", order: order.name, error: String(e.message || e) });
+      })
   );
   res.status(200).json({ ok: true });
 };
